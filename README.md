@@ -34,6 +34,7 @@ No idea about IE/Edge.
 |Package|Notes|Licence|
 |-------|-----|-------|
 |[FileSaver.js](https://github.com/eligrey/FileSaver.js)| - |[FileSaver.js license](https://github.com/eligrey/FileSaver.js/blob/master/LICENSE.md)|
+|[jszip](https://stuk.github.io/jszip/)| - |[MIT](https://github.com/Stuk/jszip/blob/main/LICENSE.markdown)|
 
 ## FEATURES
 * Basic Pascal VOC and COCO format support.
