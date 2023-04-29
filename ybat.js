@@ -738,8 +738,7 @@
                 resetClassList()
 
                 const nameParts = files[0].name.split(".")
-
-                if (nameParts[nameParts.length - 1] === "txt") {
+                if (nameParts[nameParts.length - 1] === "txt" || nameParts[nameParts.length - 1] === "names") {
                     const reader = new FileReader()
 
                     reader.addEventListener("load", () => {
@@ -897,16 +896,16 @@
                                     }
 
                                     // Reverse engineer actual position and dimensions from yolo format
-                                    const width = cols[3] * image.width
-                                    const x = cols[1] * image.width - width * 0.5
-                                    const height = cols[4] * image.height
-                                    const y = cols[2] * image.height - height * 0.5
+                                    const width = Math.floor(cols[3] * image.width)
+                                    const x = Math.floor(cols[1] * image.width - width * 0.5)
+                                    const height = Math.floor(cols[4] * image.height)
+                                    const y = Math.floor(cols[2] * image.height - height * 0.5)
 
                                     bbox[className].push({
-                                        x: Math.floor(x),
-                                        y: Math.floor(y),
-                                        width: Math.floor(width),
-                                        height: Math.floor(height),
+                                        x: x,
+                                        y: y,
+                                        width: width,
+                                        height: height,
                                         marked: false,
                                         class: className
                                     })
