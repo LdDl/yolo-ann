@@ -85,6 +85,11 @@
         alert("Restore function is not supported. If you need it, use Chrome or Firefox instead.")
     }
 
+    // Prevent accidental reloading
+    window.onbeforeunload = function(){
+        return 'Are you sure you want to leave the page?';
+    };
+
     // Start everything
     document.onreadystatechange = () => {
         if (document.readyState === "complete") {
@@ -1148,12 +1153,12 @@
                     for (let i = 0; i < bboxes[imageName][className].length; i++) {
                         const bbox = bboxes[imageName][className][i]
 
-                        const segmentation = [
+                        const segmentation = [[
                             bbox.x, bbox.y,
                             bbox.x, bbox.y + bbox.height,
                             bbox.x + bbox.width, bbox.y + bbox.height,
                             bbox.x + bbox.width, bbox.y
-                        ]
+                        ]]
 
                         result.annotations.push({
                             segmentation: segmentation,
