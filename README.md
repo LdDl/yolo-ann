@@ -1,17 +1,43 @@
 # YOLO BBox Annotation Tool
 
+https://lddl.github.io/yolo-ann/
+
 Fork of https://github.com/drainingsun/ybat
 
 Fast and efficient BBox annotation for your images in YOLO, and now, VOC/COCO formats!
 
 ## USAGE
-1. Download the zip.
-2. Extract it.
+
+### Online
+
+1. Navigate to https://lddl.github.io/yolo-ann/
+2. Load images and classes and start bboxing!
+
+### Offline
+
+<details>
+<summary>Click to expand</summary>
+
+1. Download repository
+
+    ```shell
+    git clone https://github.com/LdDl/yolo-ann.git
+    ```
+
+2. Navigate to root folder
+
+    ```shell
+    cd yolo-ann
+    ```
+
 3. Open `index.html` in your browser.
+
 4. Load images and classes and start bboxing!
+</details>
 
-![Sample](cute.png)
+UI should look something like this:
 
+<img src="cute.png" width="720">
 
 ## CONFIGURATION
 1. Open index.js.
