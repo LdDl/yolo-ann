@@ -4,16 +4,14 @@ Fork of https://github.com/drainingsun/ybat
 
 Fast and efficient BBox annotation for your images in YOLO, and now, VOC/COCO formats!
 
-## INTRO
-To see why and for what this was created, please read [YOLO BBox Annotation Tool](https://medium.com/@drainingsun/ybat-yolo-bbox-annotation-tool-96fb765d0036)
-
-![Sample](cute.png)
-
 ## USAGE
 1. Download the zip.
 2. Extract it.
 3. Open `index.html` in your browser.
 4. Load images and classes and start bboxing!
+
+![Sample](cute.png)
+
 
 ## CONFIGURATION
 1. Open index.js.
