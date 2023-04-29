@@ -30,7 +30,7 @@ All browsers that support ES6 should work. Tested with:
 No idea about IE/Edge.
 
 ## FEATURES
-* **NEW! Basic Pascal VOC and COCO format support.**
+* Basic Pascal VOC and COCO format support.
 * Works in your browser on any platform.
 * Complete YOLO format support.
 * No need for image upload - everything is done locally!
