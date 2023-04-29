@@ -31,15 +31,18 @@ Fast and efficient BBox annotation for your images in YOLO, and now, VOC/COCO fo
 3. Open `index.html` in your browser.
 
 4. Load images and classes and start bboxing!
+
+5. Optional configuration:
+
+    5.1. Open index.js.
+
+    5.2. Edit section named `parameters`.
+
 </details>
 
 UI should look something like this:
 
 <img src="cute.png" width="720">
-
-## CONFIGURATION
-1. Open index.js.
-2. Edit section named `parameters`.
 
 ## COMPATIBILITY
 All browsers that support ES6 should work. Tested with:
