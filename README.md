@@ -29,6 +29,14 @@ All browsers that support ES6 should work. Tested with:
 
 No idea about IE/Edge.
 
+## Dependencies 
+
+|Package|Notes|Licence|
+|-------|-----|-------|
+|[FileSaver.js](https://github.com/eligrey/FileSaver.js)| - |[FileSaver.js license](https://github.com/eligrey/FileSaver.js/blob/master/LICENSE.md)|
+|[jszip](https://stuk.github.io/jszip)| - |[MIT](https://github.com/Stuk/jszip/blob/main/LICENSE.markdown)|
+|[canvas.min.js](https://github.com/LdDl/yolo-ann/blob/master/canvas.min.js)| Help me to find out what is the source...Original repository doesn't have info either |???|
+
 ## FEATURES
 * Basic Pascal VOC and COCO format support.
 * Works in your browser on any platform.
