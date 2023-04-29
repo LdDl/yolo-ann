@@ -1,6 +1,4 @@
-# YOLO BBox Annotation Tool
-
-https://lddl.github.io/yolo-ann/
+# YOLO BBox Annotation Tool - https://lddl.github.io/yolo-ann
 
 Fork of https://github.com/drainingsun/ybat
 
