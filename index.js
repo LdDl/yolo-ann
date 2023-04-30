@@ -126,19 +126,19 @@
     }
 
     const drawImage = (context) => {
-        context.drawImage(currentImage.object, zoomX(0), zoomY(0), zoom(currentImage.width), zoom(currentImage.height))
+        context.drawImage(currentImage.object, zoomX(0, scale, canvasX, screenX), zoomY(0, scale, canvasY, screenY), zoom(currentImage.width, scale), zoom(currentImage.height, scale))
     }
 
     const drawIntro = (context) => {
         setFontStyles(context, false)
-        context.fillText("USAGE:", zoomX(20), zoomY(50))
-        context.fillText("1. Load your images (jpg, png). Might be slow if many or big.", zoomX(20), zoomY(100))
-        context.fillText("2. Load your classes (yolo *.names format).", zoomX(20), zoomY(150))
-        context.fillText("3. Load or restore, if any, bboxes (zipped yolo/voc/coco files).", zoomX(20), zoomY(200))
-        context.fillText("NOTES:", zoomX(20), zoomY(300))
-        context.fillText("1: Images and classes must be loaded before bbox load.", zoomX(20), zoomY(350))
-        context.fillText("2: Reloading images will RESET BBOXES!", zoomX(20), zoomY(400))
-        context.fillText("3: Check out README.md for more information.", zoomX(20), zoomY(450))
+        context.fillText("USAGE:", zoomX(20, scale, canvasX, screenX), zoomY(50, scale, canvasY, screenY))
+        context.fillText("1. Load your images (jpg, png). Might be slow if many or big.", zoomX(20, scale, canvasX, screenX), zoomY(100, scale, canvasY, screenY))
+        context.fillText("2. Load your classes (yolo *.names format).", zoomX(20, scale, canvasX, screenX), zoomY(150, scale, canvasY, screenY))
+        context.fillText("3. Load or restore, if any, bboxes (zipped yolo/voc/coco files).", zoomX(20, scale, canvasX, screenX), zoomY(200, scale, canvasY, screenY))
+        context.fillText("NOTES:", zoomX(20, scale, canvasX, screenX), zoomY(300, scale, canvasY, screenY))
+        context.fillText("1: Images and classes must be loaded before bbox load.", zoomX(20, scale, canvasX, screenX), zoomY(350, scale, canvasY, screenY))
+        context.fillText("2: Reloading images will RESET BBOXES!", zoomX(20, scale, canvasX, screenX), zoomY(400, scale, canvasY, screenY))
+        context.fillText("3: Check out README.md for more information.", zoomX(20, scale, canvasX, screenX), zoomY(450, scale, canvasY, screenY))
     }
 
     const drawNewBbox = (context) => {
@@ -147,8 +147,8 @@
             const height = (mouse.realY - mouse.startRealY)
 
             setBBoxStyles(context, true)
-            context.strokeRect(zoomX(mouse.startRealX), zoomY(mouse.startRealY), zoom(width), zoom(height))
-            context.fillRect(zoomX(mouse.startRealX), zoomY(mouse.startRealY), zoom(width), zoom(height))
+            context.strokeRect(zoomX(mouse.startRealX, scale, canvasX, screenX), zoomY(mouse.startRealY, scale, canvasY, screenY), zoom(width, scale), zoom(height, scale))
+            context.fillRect(zoomX(mouse.startRealX, scale, canvasX, screenX), zoomY(mouse.startRealY, scale, canvasY, screenY), zoom(width, scale), zoom(height, scale))
 
             drawX(context, mouse.startRealX, mouse.startRealY, width, height)
 
@@ -162,11 +162,11 @@
         for (let className in currentBboxes) {
             currentBboxes[className].forEach(bbox => {
                 setFontStyles(context, bbox.marked)
-                context.fillText(className, zoomX(bbox.x), zoomY(bbox.y - 2))
+                context.fillText(className, zoomX(bbox.x, scale, canvasX, screenX), zoomY(bbox.y - 2, scale, canvasY, screenY))
 
                 setBBoxStyles(context, bbox.marked)
-                context.strokeRect(zoomX(bbox.x), zoomY(bbox.y), zoom(bbox.width), zoom(bbox.height))
-                context.fillRect(zoomX(bbox.x), zoomY(bbox.y), zoom(bbox.width), zoom(bbox.height))
+                context.strokeRect(zoomX(bbox.x, scale, canvasX, screenX), zoomY(bbox.y, scale, canvasY, screenY), zoom(bbox.width, scale), zoom(bbox.height, scale))
+                context.fillRect(zoomX(bbox.x, scale, canvasX, screenX), zoomY(bbox.y, scale, canvasY, screenY), zoom(bbox.width, scale), zoom(bbox.height, scale))
 
                 drawX(context, bbox.x, bbox.y, bbox.width, bbox.height)
 
@@ -183,13 +183,13 @@
             const centerY = y + height / 2
 
             context.beginPath()
-            context.moveTo(zoomX(centerX), zoomY(centerY - 10))
-            context.lineTo(zoomX(centerX), zoomY(centerY + 10))
+            context.moveTo(zoomX(centerX, scale, canvasX, screenX), zoomY(centerY - 10, scale, canvasY, screenY))
+            context.lineTo(zoomX(centerX, scale, canvasX, screenX), zoomY(centerY + 10, scale, canvasY, screenY))
             context.stroke()
 
             context.beginPath()
-            context.moveTo(zoomX(centerX - 10), zoomY(centerY))
-            context.lineTo(zoomX(centerX + 10), zoomY(centerY))
+            context.moveTo(zoomX(centerX - 10, scale, canvasX, screenX), zoomY(centerY, scale, canvasY, screenY))
+            context.lineTo(zoomX(centerX + 10, scale, canvasX, screenX), zoomY(centerY, scale, canvasY, screenY))
             context.stroke()
         }
     }
@@ -199,13 +199,13 @@
             context.setLineDash([5])
 
             context.beginPath()
-            context.moveTo(zoomX(mouse.realX), zoomY(0))
-            context.lineTo(zoomX(mouse.realX), zoomY(currentImage.height))
+            context.moveTo(zoomX(mouse.realX, scale, canvasX, screenX), zoomY(0, scale, canvasY, screenY))
+            context.lineTo(zoomX(mouse.realX, scale, canvasX, screenX), zoomY(currentImage.height, scale, canvasY, screenY))
             context.stroke()
 
             context.beginPath()
-            context.moveTo(zoomX(0), zoomY(mouse.realY))
-            context.lineTo(zoomX(currentImage.width), zoomY(mouse.realY))
+            context.moveTo(zoomX(0, scale, canvasX, screenX), zoomY(mouse.realY, scale, canvasY, screenY))
+            context.lineTo(zoomX(currentImage.width, scale, canvasX, screenX), zoomY(mouse.realY, scale, canvasY, screenY))
             context.stroke()
         }
     }
@@ -236,7 +236,7 @@
             context.fillStyle = markedFontColor
         }
 
-        context.font = context.font.replace(/\d+px/, `${zoom(fontBaseSize)}px`)
+        context.font = context.font.replace(/\d+px/, `${zoom(fontBaseSize, scale)}px`)
     }
 
     const listenCanvasMouse = () => {
@@ -259,8 +259,8 @@
         screenX = mouse.x
         screenY = mouse.y
 
-        mouse.realX = zoomXInv(mouse.x)
-        mouse.realY = zoomYInv(mouse.y)
+        mouse.realX = zoomXInv(mouse.x, scale, canvasX, screenX)
+        mouse.realY = zoomYInv(mouse.y, scale, canvasY, screenY)
 
         event.preventDefault()
     }
@@ -273,8 +273,8 @@
         const xx = mouse.realX
         const yy = mouse.realY
 
-        mouse.realX = zoomXInv(mouse.x)
-        mouse.realY = zoomYInv(mouse.y)
+        mouse.realX = zoomXInv(mouse.x, scale, canvasX, screenX)
+        mouse.realY = zoomYInv(mouse.y, scale, canvasY, screenY)
 
         if (event.type === "mousedown") {
             mouse.startRealX = mouse.realX
@@ -313,7 +313,7 @@
         resizeBbox()
         changeCursorByLocation()
 
-        panImage(xx, yy)
+        canvasX, canvasY = panImage(mouse, scale, canvasX, canvasY, xx, yy)
     }
 
     const storeNewBbox = (movedWidth, movedHeight) => {
@@ -547,36 +547,6 @@
         }
     }
 
-    const panImage= (xx, yy) => {
-        if (mouse.buttonR === true) {
-            canvasX -= mouse.realX - xx
-            canvasY -= mouse.realY - yy
-
-            mouse.realX = zoomXInv(mouse.x)
-            mouse.realY = zoomYInv(mouse.y)
-        }
-    }
-
-    const zoom = (number) => {
-        return Math.floor(number * scale)
-    }
-
-    const zoomX = (number) => {
-        return Math.floor((number - canvasX) * scale + screenX)
-    }
-
-    const zoomY = (number) => {
-        return Math.floor((number - canvasY) * scale + screenY)
-    }
-
-    const zoomXInv = (number) => {
-        return Math.floor((number - screenX) * (1 / scale) + canvasX)
-    }
-
-    const zoomYInv = (number) => {
-        return Math.floor((number - screenY) * (1 / scale) + canvasY)
-    }
-
     const listenImageLoad = () => {
         document.getElementById("images").addEventListener("change", (event) => {
             const imageList = document.getElementById("imageList")
@@ -699,19 +669,6 @@
         } else {
             scale = canvas.height / image.height
         }
-    }
-
-    const formatBytes = (bytes, decimals) => {
-        if (bytes === 0) {
-            return "0 Bytes"
-        }
-
-        const k = 1024
-        const dm = decimals || 2
-        const sizes = ["Bytes", "KB", "MB"]
-        const i = Math.floor(Math.log(bytes) / Math.log(k))
-
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i]
     }
 
     const listenImageSelect = () => {
