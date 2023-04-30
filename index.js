@@ -577,7 +577,7 @@
         }
 
         if (fittedZoom === true) {
-            fitZoom(image)
+            scale = fitZoom(image, scale, canvas.width, canvas.height)
         }
 
         const reader = new FileReader()
@@ -606,14 +606,6 @@
         if (currentBbox !== null) {
             currentBbox.bbox.marked = false // We unmark via reference
             currentBbox = null // and the we delete
-        }
-    }
-
-    const fitZoom = (image) => {
-        if (image.width > image.height) {
-            scale = canvas.width / image.width
-        } else {
-            scale = canvas.height / image.height
         }
     }
 

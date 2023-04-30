@@ -8,3 +8,12 @@ const panImage = (mouse, scale, canvasX, canvasY, xx, yy) => {
     }
     return canvasX, canvasY
 }
+
+const fitZoom = (image, scale, canvasWidth, canvasHeight) => {
+    if (image.width > image.height) {
+        scale = canvasWidth / image.width
+    } else {
+        scale = canvasHeight / image.height
+    }
+    return scale
+}
