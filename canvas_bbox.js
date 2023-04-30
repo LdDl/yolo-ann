@@ -12,7 +12,7 @@ const setBBoxStyles = (context, borderColor, backgroundColor, markedBorderColor,
 }
 
 // Draws cross in the middle of bounding box
-const drawX = (context, x, y, width, height, scale, canvasX, canvasY, screenX, screenY) => {
+const drawCross = (context, x, y, width, height, scale, canvasX, canvasY, screenX, screenY) => {
     const centerX = x + width / 2
     const centerY = y + height / 2
 

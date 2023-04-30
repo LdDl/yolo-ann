@@ -139,7 +139,7 @@
             context.fillRect(zoomX(mouse.startRealX, scale, canvasX, screenX), zoomY(mouse.startRealY, scale, canvasY, screenY), zoom(width, scale), zoom(height, scale))
 
             if (drawCenterX === true) {
-                drawX(context, mouse.startRealX, mouse.startRealY, width, height, scale, canvasX, canvasY, screenX, screenY)
+                drawCross(context, mouse.startRealX, mouse.startRealY, width, height, scale, canvasX, canvasY, screenX, screenY)
             }
 
             setBBoxCoordinates(bboxInformationID, mouse.startRealX, mouse.startRealY, width, height)
@@ -159,7 +159,7 @@
                 context.fillRect(zoomX(bbox.x, scale, canvasX, screenX), zoomY(bbox.y, scale, canvasY, screenY), zoom(bbox.width, scale), zoom(bbox.height, scale))
 
                 if (drawCenterX === true) {
-                    drawX(context, bbox.x, bbox.y, bbox.width, bbox.height, scale, canvasX, canvasY, screenX, screenY)
+                    drawCross(context, bbox.x, bbox.y, bbox.width, bbox.height, scale, canvasX, canvasY, screenX, screenY)
                 }
 
                 if (bbox.marked === true) {
