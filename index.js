@@ -8,8 +8,8 @@
     const fontColor = "#001f3f" // Base font color
     const borderColor = "#001f3f" // Base bbox border color
     const backgroundColor = "rgba(0, 116, 217, 0.2)" // Base bbox fill color
-    const markedFontColor = "#FF4136" // Marked bbox font color
-    const markedBorderColor = "#FF4136" // Marked bbox border color
+    const markedFontColor = "#ff4136" // Marked bbox font color
+    const markedBorderColor = "#ff4136" // Marked bbox border color
     const markedBackgroundColor = "rgba(255, 133, 27, 0.2)" // Marked bbox fill color
     const minBBoxWidth = 5 // Minimal width of bbox
     const minBBoxHeight = 5 // Minimal height of bbox
@@ -121,10 +121,10 @@
                 drawNewBbox(context)
                 drawExistingBboxes(context)
                 if (drawCursorGuidelines === true) {
-                    drawGuidelines(context, mouse, scale, canvasX, canvasY, screenX, screenY, currentImage.width, currentImage.height)
+                    drawGuidelines(context, mouse, currentImage.width, currentImage.height, { scale, canvasX, canvasY, screenX, screenY })
                 }
             } else {
-                drawIntro(context, fontColor, markedFontColor, fontBaseSize, scale, canvasX, canvasY, screenX, screenY)
+                drawIntro(context, { fontColor, markedFontColor, fontBaseSize, scale, canvasX, canvasY, screenX, screenY })
             }
         }).start()
     }
@@ -134,12 +134,12 @@
             const width = (mouse.realX - mouse.startRealX)
             const height = (mouse.realY - mouse.startRealY)
 
-            setBBoxStyles(context, borderColor, backgroundColor, markedBorderColor, markedBackgroundColor, true)
+            setBBoxStyles(context, { borderColor, backgroundColor, markedBorderColor, markedBackgroundColor, marked: true })
             context.strokeRect(zoomX(mouse.startRealX, scale, canvasX, screenX), zoomY(mouse.startRealY, scale, canvasY, screenY), zoom(width, scale), zoom(height, scale))
             context.fillRect(zoomX(mouse.startRealX, scale, canvasX, screenX), zoomY(mouse.startRealY, scale, canvasY, screenY), zoom(width, scale), zoom(height, scale))
 
             if (drawCenterX === true) {
-                drawCross(context, mouse.startRealX, mouse.startRealY, width, height, scale, canvasX, canvasY, screenX, screenY)
+                drawCross(context, mouse.startRealX, mouse.startRealY, width, height, { scale, canvasX, canvasY, screenX, screenY })
             }
 
             setBBoxCoordinates(bboxInformationID, mouse.startRealX, mouse.startRealY, width, height)
@@ -151,15 +151,16 @@
 
         for (let className in currentBboxes) {
             currentBboxes[className].forEach(bbox => {
-                setFontStyles(context, fontColor, markedFontColor, fontBaseSize, scale, bbox.marked)
+                const marked = bbox.marked
+                setFontStyles(context, { fontColor, markedFontColor, fontBaseSize: 15, scale, marked })
                 context.fillText(className, zoomX(bbox.x, scale, canvasX, screenX), zoomY(bbox.y - 2, scale, canvasY, screenY))
 
-                setBBoxStyles(context, borderColor, backgroundColor, markedBorderColor, markedBackgroundColor, bbox.marked)
+                setBBoxStyles(context, { borderColor, backgroundColor, markedBorderColor, markedBackgroundColor, marked })
                 context.strokeRect(zoomX(bbox.x, scale, canvasX, screenX), zoomY(bbox.y, scale, canvasY, screenY), zoom(bbox.width, scale), zoom(bbox.height, scale))
                 context.fillRect(zoomX(bbox.x, scale, canvasX, screenX), zoomY(bbox.y, scale, canvasY, screenY), zoom(bbox.width, scale), zoom(bbox.height, scale))
 
                 if (drawCenterX === true) {
-                    drawCross(context, bbox.x, bbox.y, bbox.width, bbox.height, scale, canvasX, canvasY, screenX, screenY)
+                    drawCross(context, bbox.x, bbox.y, bbox.width, bbox.height, { scale, canvasX, canvasY, screenX, screenY })
                 }
 
                 if (bbox.marked === true) {

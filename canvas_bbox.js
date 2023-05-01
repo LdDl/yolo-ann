@@ -1,5 +1,5 @@
 // Sets user defiend styles for bounding box
-const setBBoxStyles = (context, borderColor, backgroundColor, markedBorderColor, markedBackgroundColor, marked) => {
+const setBBoxStyles = (context, { borderColor = '#001f3f', backgroundColor = 'rgba(0, 116, 217, 0.2)', markedBorderColor = '#ff4136', markedBackgroundColor = 'rgba(255, 133, 27, 0.2)', marked = false }) => {
     context.setLineDash([])
 
     if (marked === false) {
@@ -12,7 +12,7 @@ const setBBoxStyles = (context, borderColor, backgroundColor, markedBorderColor,
 }
 
 // Draws cross in the middle of bounding box
-const drawCross = (context, x, y, width, height, scale, canvasX, canvasY, screenX, screenY) => {
+const drawCross = (context, x, y, width, height, { scale = 1, canvasX, canvasY, screenX, screenY }) => {
     const centerX = x + width / 2
     const centerY = y + height / 2
 

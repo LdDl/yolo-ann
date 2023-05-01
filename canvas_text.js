@@ -1,4 +1,4 @@
-const setFontStyles = (context, fontColor, markedFontColor, fontBaseSize, scale, marked) => {
+const setFontStyles = (context, { fontColor = '#001f3f', markedFontColor = '#ff4136', fontBaseSize = 30, scale = 1, marked = false }) => {
     if (marked === false) {
         context.fillStyle = fontColor
     } else {

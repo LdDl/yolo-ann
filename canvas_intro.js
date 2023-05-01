@@ -1,5 +1,5 @@
-const drawIntro = (context, fontColor, markedFontColor, fontBaseSize, scale, canvasX, canvasY, screenX, screenY) => {
-    setFontStyles(context, fontColor, markedFontColor, fontBaseSize, scale, false)
+const drawIntro = (context, { fontColor = '#001f3f', markedFontColor = '#ff4136', fontBaseSize = 30, scale = 1, canvasX, canvasY, screenX, screenY }) => {
+    setFontStyles(context, { fontColor, markedFontColor, fontBaseSize, scale, marked: false })
     context.fillText("USAGE:", zoomX(20, scale, canvasX, screenX), zoomY(50, scale, canvasY, screenY))
     context.fillText("1. Load your images (jpg, png). Might be slow if many or big.", zoomX(20, scale, canvasX, screenX), zoomY(100, scale, canvasY, screenY))
     context.fillText("2. Load your classes (yolo *.names format).", zoomX(20, scale, canvasX, screenX), zoomY(150, scale, canvasY, screenY))

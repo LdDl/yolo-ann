@@ -1,5 +1,5 @@
 // Adds guidelines to user's cursor
-const drawGuidelines = (context, mouse, scale, canvasX, canvasY, screenX, screenY, imgWidth, imgHeight) => {
+const drawGuidelines = (context, mouse, imgWidth, imgHeight, { scale = 1, canvasX, canvasY, screenX, screenY }) => {
     context.setLineDash([5])
 
     context.beginPath()
