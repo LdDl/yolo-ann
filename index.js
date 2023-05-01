@@ -29,7 +29,21 @@
     let classes = {}
     let bboxes = {}
 
+    /* Containers */
     const bboxInformationID = 'bboxInformation'
+    const classListID = 'classList'
+    const classesID = 'classes'
+    const imageInformationID = 'imageInformation'
+    const imagesID = 'images'
+    const imageListID = 'imageList'
+    const imageSearchID = 'imageSearch'
+    const bboxesID = 'bboxes'
+    const restoreBboxesID = 'restoreBboxes'
+    const saveBBoxesID = 'saveBboxes'
+    const saveBBoxesVOCID = 'saveVocBboxes'
+    const vocFolderID = 'vocFolder'
+    const saveBBoxesCOCOID = 'saveCocoBboxes'
+    const cropImagesID = 'cropImages'
 
     const extensions = ["jpg", "jpeg", "png", "JPG", "JPEG", "PNG"]
 
@@ -97,18 +111,18 @@
         if (document.readyState === "complete") {
             listenCanvas()
             listenCanvasMouse()
-            listenImageLoad()
-            listenImageSelect()
-            listenClassLoad()
-            listenClassSelect()
-            listenBboxLoad()
-            listenBboxSave()
-            listenBboxVocSave()
-            listenBboxCocoSave()
-            listenBboxRestore()
-            listenKeyboard()
-            listenImageSearch()
-            listenImageCrop()
+            listenImageLoad(imageInformationID, imagesID, imageListID, bboxesID, restoreBboxesID)
+            listenImageSelect(imageInformationID, imageListID)
+            listenClassLoad(classListID, classesID, bboxesID, restoreBboxesID)
+            listenClassSelect(classListID)
+            listenBboxLoad(bboxesID)
+            listenBboxSave(saveBBoxesID)
+            listenBboxVocSave(saveBBoxesVOCID, vocFolderID)
+            listenBboxCocoSave(saveBBoxesCOCOID)
+            listenBboxRestore(restoreBboxesID)
+            listenKeyboard(imageInformationID, imageListID, classListID)
+            listenImageSearch(imageInformationID, imageSearchID, imageListID)
+            listenImageCrop(cropImagesID)
         }
     }
 
@@ -478,76 +492,76 @@
         }
     }
 
-    const listenImageLoad = () => {
-        document.getElementById("images").addEventListener("change", (event) => {
-            const imageList = document.getElementById("imageList")
-
+    const listenImageLoad = (imageInformationContainerID, imagesContainerID, imageListContainerID, bboxesContainerID, restoreBboxesContainerID) => {
+        document.getElementById(imagesContainerID).addEventListener("change", (event) => {
+            const imageList = document.getElementById(imageListContainerID)
+    
             const files = event.target.files
-
+    
             if (files.length > 0) {
-                resetImageList()
-
+                resetImageList(imageListContainerID)
+    
                 document.body.style.cursor = "wait"
-
+    
                 for (let i = 0; i < files.length; i++) {
                     const nameParts = files[i].name.split(".")
-
+    
                     if (extensions.indexOf(nameParts[nameParts.length - 1]) !== -1) {
                         images[files[i].name] = {
                             meta: files[i],
                             index: i
                         }
-
+    
                         const option = document.createElement("option")
-
+    
                         option.value = files[i].name
                         option.innerHTML = files[i].name
-
+    
                         if (i === 0) {
                             option.selected = true
                         }
-
+    
                         imageList.appendChild(option)
                     }
                 }
-
+    
                 const imageArray = Object.keys(images)
-
+    
                 let async = imageArray.length
-
+    
                 for (let image in images) {
                     const reader = new FileReader()
-
+    
                     reader.addEventListener("load", () => {
                         const imageObject = new Image()
-
+    
                         imageObject.addEventListener("load", (event) => {
                             images[image].width = event.target.width
                             images[image].height = event.target.height
-
+    
                             if (--async === 0) {
                                 document.body.style.cursor = "default"
-
-                                setCurrentImage(images[imageArray[0]])
-
+    
+                                setCurrentImage(imageInformationContainerID, images[imageArray[0]])
+    
                                 if (Object.keys(classes).length > 0) {
-                                    document.getElementById("bboxes").disabled = false
-                                    document.getElementById("restoreBboxes").disabled = false
+                                    document.getElementById(bboxesContainerID).disabled = false
+                                    document.getElementById(restoreBboxesContainerID).disabled = false
                                 }
                             }
                         })
-
+    
                         imageObject.src = reader.result
                     })
-
+    
                     reader.readAsDataURL(images[image].meta)
                 }
             }
         })
     }
 
-    const resetImageList = () => {
-        const imageList = document.getElementById("imageList")
+    const resetImageList = (imageListContainerID) => {
+        const imageList = document.getElementById(imageListContainerID)
 
         imageList.innerHTML = ""
 
@@ -556,7 +570,7 @@
         currentImage = null
     }
 
-    const setCurrentImage = (image) => {
+    const setCurrentImage = (imageInformationContainerID, image) => {
         if (resetCanvasOnChange === true) {
             resetCanvasPlacement()
         }
@@ -582,8 +596,7 @@
 
             imageObject.src = dataUrl
 
-            document.getElementById("imageInformation")
-                .innerHTML = `${image.width}x${image.height}, ${formatBytes(image.meta.size)}`
+            document.getElementById(imageInformationContainerID).innerHTML = `${image.width}x${image.height}, ${formatBytes(image.meta.size)}`
         })
 
         reader.readAsDataURL(image.meta)
@@ -594,85 +607,85 @@
         }
     }
 
-    const listenImageSelect = () => {
-        const imageList = document.getElementById("imageList")
+    const listenImageSelect = (imageInformationContainerID, imageListContainerID) => {
+        const imageList = document.getElementById(imageListContainerID)
 
         imageList.addEventListener("change", () => {
             imageListIndex = imageList.selectedIndex
 
-            setCurrentImage(images[imageList.options[imageListIndex].innerHTML])
+            setCurrentImage(imageInformationContainerID, images[imageList.options[imageListIndex].innerHTML])
         })
     }
 
-    const listenClassLoad = () => {
-        const classesElement = document.getElementById("classes")
-
+    const listenClassLoad = (classesListContainerID, classesContainerID, bboxesContainerID, restoreBboxesContainerID) => {
+        const classesElement = document.getElementById(classesContainerID)
+    
         classesElement.addEventListener("click", () => {
             classesElement.value = null
         })
-
+    
         classesElement.addEventListener("change", (event) => {
             const files = event.target.files
-
+    
             if (files.length > 0) {
-                resetClassList()
-
+                resetClassList(classesListContainerID)
+    
                 const nameParts = files[0].name.split(".")
                 if (nameParts[nameParts.length - 1] === "txt" || nameParts[nameParts.length - 1] === "names") {
                     const reader = new FileReader()
-
+    
                     reader.addEventListener("load", () => {
                         const lines = reader.result
-
+    
                         const rows = lines.split(/[\r\n]+/)
-
+    
                         if (rows.length > 0) {
-                            const classList = document.getElementById("classList")
-
+                            const classList = document.getElementById(classesListContainerID)
+    
                             for (let i = 0; i < rows.length; i++) {
                                 rows[i] = rows[i].trim()
-
+    
                                 if (rows[i] !== "") {
                                     classes[rows[i]] = i
-
+    
                                     const option = document.createElement("option")
-
+    
                                     option.value = i
                                     option.innerHTML = rows[i]
-
+    
                                     if (i === 0) {
                                         option.selected = true
                                         currentClass = rows[i]
                                     }
-
+    
                                     classList.appendChild(option)
                                 }
                             }
-
-                            setCurrentClass()
-
+    
+                            setCurrentClass(classesListContainerID)
+    
                             if (Object.keys(images).length > 0) {
-                                document.getElementById("bboxes").disabled = false
-                                document.getElementById("restoreBboxes").disabled = false
+                                document.getElementById(bboxesContainerID).disabled = false
+                                document.getElementById(restoreBboxesContainerID).disabled = false
                             }
                         }
                     })
-
+    
                     reader.readAsText(files[0])
                 }
             }
         })
     }
 
-    const resetClassList = () => {
-        document.getElementById("classList").innerHTML = ""
+    const resetClassList = (classesListContainerID) => {
+        document.getElementById(classesListContainerID).innerHTML = ""
 
         classes = {}
         currentClass = null
     }
 
-    const setCurrentClass = () => {
-        const classList = document.getElementById("classList")
+    const setCurrentClass = (classesListContainerID) => {
+        const classList = document.getElementById(classesListContainerID)
 
         currentClass = classList.options[classList.selectedIndex].text
 
@@ -682,40 +695,40 @@
         }
     }
 
-    const listenClassSelect = () => {
-        const classList = document.getElementById("classList")
+    const listenClassSelect = (classesListContainerID) => {
+        const classList = document.getElementById(classesListContainerID)
 
         classList.addEventListener("change", () => {
             classListIndex = classList.selectedIndex
 
-            setCurrentClass()
+            setCurrentClass(classesListContainerID)
         })
     }
 
-    const listenBboxLoad = () => {
-        const bboxesElement = document.getElementById("bboxes")
-
+    const listenBboxLoad = (bboxesContainerID) => {
+        const bboxesElement = document.getElementById(bboxesContainerID)
+    
         bboxesElement.addEventListener("click", () => {
             bboxesElement.value = null
         })
-
+    
         bboxesElement.addEventListener("change", (event) => {
             const files = event.target.files
-
+    
             if (files.length > 0) {
                 resetBboxes()
-
+    
                 for (let i = 0; i < files.length; i++) {
                     const reader = new FileReader()
-
+    
                     const extension = files[i].name.split(".").pop()
-
+    
                     reader.addEventListener("load", () => {
                         if (extension === "txt" || extension === "xml" || extension === "json") {
                             storeBbox(files[i].name, reader.result)
                         } else {
                             const zip = new JSZip()
-
+    
                             zip.loadAsync(reader.result)
                                 .then((result) => {
                                     for (let filename in result.files) {
@@ -727,7 +740,7 @@
                                 })
                         }
                     })
-
+    
                     if (extension === "txt" || extension === "xml"  || extension === "json") {
                         reader.readAsText(files[i])
                     } else {
@@ -892,8 +905,8 @@
         }
     }
 
-    const listenBboxSave = () => {
-        document.getElementById("saveBboxes").addEventListener("click", () => {
+    const listenBboxSave = (saveBBoxesContainerID) => {
+        document.getElementById(saveBBoxesContainerID).addEventListener("click", () => {
             const zip = new JSZip()
 
             for (let imageName in bboxes) {
@@ -929,9 +942,9 @@
         })
     }
 
-    const listenBboxVocSave = () => {
-        document.getElementById("saveVocBboxes").addEventListener("click", () => {
-            const folderPath = document.getElementById("vocFolder").value
+    const listenBboxVocSave = (saveBBoxesVOCContainerID, vocFolderContainerID) => {
+        document.getElementById(saveBBoxesVOCContainerID).addEventListener("click", () => {
+            const folderPath = document.getElementById(vocFolderContainerID).value
 
             const zip = new JSZip()
 
@@ -995,8 +1008,8 @@
         })
     }
 
-    const listenBboxCocoSave = () => {
-        document.getElementById("saveCocoBboxes").addEventListener("click", () => {
+    const listenBboxCocoSave = (saveBBoxesCOCOContainerID) => {
+        document.getElementById(saveBBoxesCOCOContainerID).addEventListener("click", () => {
             const zip = new JSZip()
 
             const result = {
@@ -1062,8 +1075,8 @@
         })
     }
 
-    const listenBboxRestore = () => {
-        document.getElementById("restoreBboxes").addEventListener("click", () => {
+    const listenBboxRestore = (restoreBboxesContainerID) => {
+        document.getElementById(restoreBboxesContainerID).addEventListener("click", () => {
             const item = localStorage.getItem("bboxes")
 
             if (item) {
@@ -1072,101 +1085,101 @@
         })
     }
 
-    const listenKeyboard = () => {
-        const imageList = document.getElementById("imageList")
-        const classList = document.getElementById("classList")
-
+    const listenKeyboard = (imageInformationContainerID, imageListContainerID, classListContainerID) => {
+        const imageList = document.getElementById(imageListContainerID)
+        const classList = document.getElementById(classListContainerID)
+    
         document.addEventListener("keydown", (event) => {
             const key = event.keyCode || event.charCode
-
+    
             if (key === 46 || (key === 8 && event.metaKey === true)) {
                 if (currentBbox !== null) {
                     bboxes[currentImage.name][currentBbox.bbox.class].splice(currentBbox.index, 1)
                     currentBbox = null
-
+    
                     document.body.style.cursor = "default"
                 }
-
+    
                 event.preventDefault()
             }
-
+    
             if (key === 37) {
                 if (imageList.length > 1) {
                     imageList.options[imageListIndex].selected = false
-
+    
                     if (imageListIndex === 0) {
                         imageListIndex = imageList.length - 1
                     } else {
                         imageListIndex--
                     }
-
+    
                     imageList.options[imageListIndex].selected = true
                     imageList.selectedIndex = imageListIndex
-
-                    setCurrentImage(images[imageList.options[imageListIndex].innerHTML])
-
+    
+                    setCurrentImage(imageInformationContainerID, images[imageList.options[imageListIndex].innerHTML])
+    
                     document.body.style.cursor = "default"
                 }
-
+    
                 event.preventDefault()
             }
-
+    
             if (key === 39) {
                 if (imageList.length > 1) {
                     imageList.options[imageListIndex].selected = false
-
+    
                     if (imageListIndex === imageList.length - 1) {
                         imageListIndex = 0
                     } else {
                         imageListIndex++
                     }
-
+    
                     imageList.options[imageListIndex].selected = true
                     imageList.selectedIndex = imageListIndex
-
-                    setCurrentImage(images[imageList.options[imageListIndex].innerHTML])
-
+    
+                    setCurrentImage(imageInformationContainerID, images[imageList.options[imageListIndex].innerHTML])
+    
                     document.body.style.cursor = "default"
                 }
-
+    
                 event.preventDefault()
             }
-
+    
             if (key === 38) {
                 if (classList.length > 1) {
                     classList.options[classListIndex].selected = false
-
+    
                     if (classListIndex === 0) {
                         classListIndex = classList.length - 1
                     } else {
                         classListIndex--
                     }
-
+    
                     classList.options[classListIndex].selected = true
                     classList.selectedIndex = classListIndex
-
-                    setCurrentClass()
+    
+                    setCurrentClass(classListContainerID)
                 }
-
+    
                 event.preventDefault()
             }
-
+    
             if (key === 40) {
                 if (classList.length > 1) {
                     classList.options[classListIndex].selected = false
-
+    
                     if (classListIndex === classList.length - 1) {
                         classListIndex = 0
                     } else {
                         classListIndex++
                     }
-
+    
                     classList.options[classListIndex].selected = true
                     classList.selectedIndex = classListIndex
-
-                    setCurrentClass()
+    
+                    setCurrentClass(classListContainerID)
                 }
-
+    
                 event.preventDefault()
             }
         })
@@ -1189,15 +1202,15 @@
         mouse.startRealY = 0
     }
 
-    const listenImageSearch = () => {
-        document.getElementById("imageSearch").addEventListener("input", (event) => {
+    const listenImageSearch = (imageInformationContainerID, imageSearchContainerID, imageListContainerID) => {
+        document.getElementById(imageSearchContainerID).addEventListener("input", (event) => {
             const value = event.target.value
 
             for (let imageName in images) {
                 if (imageName.indexOf(value) !== -1) {
-                    document.getElementById("imageList").selectedIndex = images[imageName].index
+                    document.getElementById(imageListContainerID).selectedIndex = images[imageName].index
 
-                    setCurrentImage(images[imageName])
+                    setCurrentImage(imageInformationContainerID, images[imageName])
 
                     break
                 }
@@ -1205,7 +1218,7 @@
         })
     }
 
-    const listenImageCrop = () => {
+    const listenImageCrop = (cropImagesContainerID) => {
         document.getElementById("cropImages").addEventListener("click", () => {
             const zip = new JSZip()
 
