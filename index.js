@@ -1219,7 +1219,7 @@
     }
 
     const listenImageCrop = (cropImagesContainerID) => {
-        document.getElementById("cropImages").addEventListener("click", () => {
+        document.getElementById(cropImagesContainerID).addEventListener("click", () => {
             const zip = new JSZip()
 
             let x = 0
