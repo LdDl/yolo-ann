@@ -110,7 +110,7 @@
     // Start everything
     document.onreadystatechange = () => {
         if (document.readyState === "complete") {
-            listenCanvas(canvasID)
+            initCanvas(canvasID)
             listenCanvasMouse()
             listenImageLoad(imageInformationID, imagesID, imageListID, bboxesID, restoreBboxesID)
             listenImageSelect(imageInformationID, imageListID)
@@ -127,7 +127,7 @@
         }
     }
 
-    const listenCanvas = (canvasContainerID) => {
+    const initCanvas = (canvasContainerID) => {
         canvas = new Canvas(canvasContainerID, document.getElementById("right").clientWidth, window.innerHeight - 20)
 
         canvas.on("draw", (context) => {
