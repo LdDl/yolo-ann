@@ -110,7 +110,7 @@
     // Start everything
     document.onreadystatechange = () => {
         if (document.readyState === "complete") {
-            initCanvas(canvasID)
+            initCanvas(canvasID, bboxInformationID)
             listenCanvasMouse()
             listenImageLoad(imageInformationID, imagesID, imageListID, bboxesID, restoreBboxesID)
             listenImageSelect(imageInformationID, imageListID)
@@ -127,14 +127,14 @@
         }
     }
 
-    const initCanvas = (canvasContainerID) => {
+    const initCanvas = (canvasContainerID, bboxInformationContainerID) => {
         canvas = new Canvas(canvasContainerID, document.getElementById("right").clientWidth, window.innerHeight - 20)
 
         canvas.on("draw", (context) => {
             if (currentImage !== null) {
                 drawImage(context, currentImage.object, currentImage.width, currentImage.height, scale, canvasX, canvasY, screenX, screenY)
-                drawNewBbox(context)
-                drawExistingBboxes(context)
+                drawNewBbox(bboxInformationContainerID, context)
+                drawExistingBboxes(bboxInformationContainerID, context)
                 if (drawCursorGuidelines === true) {
                     drawGuidelines(context, mouse, currentImage.width, currentImage.height, { scale, canvasX, canvasY, screenX, screenY })
                 }
@@ -144,7 +144,7 @@
         }).start()
     }
 
-    const drawNewBbox = (context) => {
+    const drawNewBbox = (bboxInformationContainerID, context) => {
         if (mouse.buttonL === true && currentClass !== null && currentBbox === null) {
             const width = (mouse.realX - mouse.startRealX)
             const height = (mouse.realY - mouse.startRealY)
@@ -157,11 +157,11 @@
                 drawCross(context, mouse.startRealX, mouse.startRealY, width, height, { scale, canvasX, canvasY, screenX, screenY })
             }
 
-            setBBoxCoordinates(bboxInformationID, mouse.startRealX, mouse.startRealY, width, height)
+            setBBoxCoordinates(bboxInformationContainerID, mouse.startRealX, mouse.startRealY, width, height)
         }
     }
 
-    const drawExistingBboxes = (context) => {
+    const drawExistingBboxes = (bboxInformationContainerID, context) => {
         const currentBboxes = bboxes[currentImage.name]
 
         for (let className in currentBboxes) {
@@ -179,7 +179,7 @@
                 }
 
                 if (bbox.marked === true) {
-                    setBBoxCoordinates(bboxInformationID, bbox.x, bbox.y, bbox.width, bbox.height)
+                    setBBoxCoordinates(bboxInformationContainerID, bbox.x, bbox.y, bbox.width, bbox.height)
                 }
             })
         }
@@ -259,7 +259,19 @@
         resizeBbox()
         changeCursorByLocation()
 
-        canvasX, canvasY = panImage(mouse, scale, canvasX, canvasY, xx, yy)
+        const { diffX, diffY } = panImage(mouse, scale, canvasX, canvasY, xx, yy)
+        canvasX -= diffX
+        canvasY -= diffY
+    }
+    const panImage = (mouse, scale, canvasX, canvasY, xx, yy) => {
+        if (mouse.buttonR === true) {
+            const diffX = mouse.realX - xx
+            const diffY = mouse.realY - yy
+            mouse.realX = zoomXInv(mouse.x, scale, canvasX - diffX, screenX)
+            mouse.realY = zoomYInv(mouse.y, scale, canvasY - diffY, screenY)
+            return { diffX: diffX, diffY: diffY }
+        }
+        return { diffX: 0, diffY: 0 }
     }
 
     const storeNewBbox = (movedWidth, movedHeight) => {
