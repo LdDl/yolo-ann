@@ -30,6 +30,7 @@
     let bboxes = {}
 
     /* Containers */
+    const canvasID = 'canvas'
     const bboxInformationID = 'bboxInformation'
     const classListID = 'classList'
     const classesID = 'classes'
@@ -109,7 +110,7 @@
     // Start everything
     document.onreadystatechange = () => {
         if (document.readyState === "complete") {
-            listenCanvas()
+            listenCanvas(canvasID)
             listenCanvasMouse()
             listenImageLoad(imageInformationID, imagesID, imageListID, bboxesID, restoreBboxesID)
             listenImageSelect(imageInformationID, imageListID)
@@ -122,12 +123,12 @@
             listenBboxRestore(restoreBboxesID)
             listenKeyboard(imageInformationID, imageListID, classListID)
             listenImageSearch(imageInformationID, imageSearchID, imageListID)
-            listenImageCrop(cropImagesID)
+            listenImageCrop(canvasID, cropImagesID)
         }
     }
 
-    const listenCanvas = () => {
-        canvas = new Canvas("canvas", document.getElementById("right").clientWidth, window.innerHeight - 20)
+    const listenCanvas = (canvasContainerID) => {
+        canvas = new Canvas(canvasContainerID, document.getElementById("right").clientWidth, window.innerHeight - 20)
 
         canvas.on("draw", (context) => {
             if (currentImage !== null) {
@@ -1218,7 +1219,7 @@
         })
     }
 
-    const listenImageCrop = (cropImagesContainerID) => {
+    const listenImageCrop = (canvasContainerID, cropImagesContainerID) => {
         document.getElementById(cropImagesContainerID).addEventListener("click", () => {
             const zip = new JSZip()
 
@@ -1244,7 +1245,7 @@
                             const imageObject = new Image()
 
                             imageObject.addEventListener("load", () => {
-                                const temporaryCanvas = document.createElement("canvas")
+                                const temporaryCanvas = document.createElement(canvasContainerID)
 
                                 temporaryCanvas.style.display = "none"
                                 temporaryCanvas.width = bbox.width
