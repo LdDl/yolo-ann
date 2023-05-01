@@ -8,8 +8,8 @@
     const fontColor = "#001f3f" // Base font color
     const borderColor = "#001f3f" // Base bbox border color
     const backgroundColor = "rgba(0, 116, 217, 0.2)" // Base bbox fill color
-    const markedFontColor = "#FF4136" // Marked bbox font color
-    const markedBorderColor = "#FF4136" // Marked bbox border color
+    const markedFontColor = "#ff4136" // Marked bbox font color
+    const markedBorderColor = "#ff4136" // Marked bbox border color
     const markedBackgroundColor = "rgba(255, 133, 27, 0.2)" // Marked bbox fill color
     const minBBoxWidth = 5 // Minimal width of bbox
     const minBBoxHeight = 5 // Minimal height of bbox
@@ -20,7 +20,7 @@
     const resetCanvasOnChange = true // Whether to return to default position and zoom on image change
     const defaultScale = 0.5 // Default zoom level for images. Can be overridden with fittedZoom
     const drawCenterX = true // Whether to draw a cross in the middle of bbox
-    const drawGuidelines = true // Whether to draw guidelines for cursor
+    const drawCursorGuidelines = true // Whether to draw guidelines for cursor
     const fittedZoom = true // Whether to fit image in the screen by it's largest dimension. Overrides defaultScale
 
     // Main containers
@@ -28,6 +28,23 @@
     let images = {}
     let classes = {}
     let bboxes = {}
+
+    /* Containers */
+    const canvasID = 'canvas'
+    const bboxInformationID = 'bboxInformation'
+    const classListID = 'classList'
+    const classesID = 'classes'
+    const imageInformationID = 'imageInformation'
+    const imagesID = 'images'
+    const imageListID = 'imageList'
+    const imageSearchID = 'imageSearch'
+    const bboxesID = 'bboxes'
+    const restoreBboxesID = 'restoreBboxes'
+    const saveBBoxesID = 'saveBboxes'
+    const saveBBoxesVOCID = 'saveVocBboxes'
+    const vocFolderID = 'vocFolder'
+    const saveBBoxesCOCOID = 'saveCocoBboxes'
+    const cropImagesID = 'cropImages'
 
     const extensions = ["jpg", "jpeg", "png", "JPG", "JPEG", "PNG"]
 
@@ -93,150 +110,79 @@
     // Start everything
     document.onreadystatechange = () => {
         if (document.readyState === "complete") {
-            listenCanvas()
+            initCanvas(canvasID, bboxInformationID)
             listenCanvasMouse()
-            listenImageLoad()
-            listenImageSelect()
-            listenClassLoad()
-            listenClassSelect()
-            listenBboxLoad()
-            listenBboxSave()
-            listenBboxVocSave()
-            listenBboxCocoSave()
-            listenBboxRestore()
-            listenKeyboard()
-            listenImageSearch()
-            listenImageCrop()
+            listenImageLoad(imageInformationID, imagesID, imageListID, bboxesID, restoreBboxesID)
+            listenImageSelect(imageInformationID, imageListID)
+            listenClassLoad(classListID, classesID, bboxesID, restoreBboxesID)
+            listenClassSelect(classListID)
+            listenBboxLoad(bboxesID)
+            listenBboxSave(saveBBoxesID)
+            listenBboxVocSave(saveBBoxesVOCID, vocFolderID)
+            listenBboxCocoSave(saveBBoxesCOCOID)
+            listenBboxRestore(restoreBboxesID)
+            listenKeyboard(imageInformationID, imageListID, classListID)
+            listenImageSearch(imageInformationID, imageSearchID, imageListID)
+            listenImageCrop(canvasID, cropImagesID)
         }
     }
 
-    const listenCanvas = () => {
-        canvas = new Canvas("canvas", document.getElementById("right").clientWidth, window.innerHeight - 20)
+    const initCanvas = (canvasContainerID, bboxInformationContainerID) => {
+        canvas = new Canvas(canvasContainerID, document.getElementById("right").clientWidth, window.innerHeight - 20)
 
         canvas.on("draw", (context) => {
             if (currentImage !== null) {
-                drawImage(context)
-                drawNewBbox(context)
-                drawExistingBboxes(context)
-                drawCross(context)
+                drawImage(context, currentImage.object, currentImage.width, currentImage.height, scale, canvasX, canvasY, screenX, screenY)
+                drawNewBbox(bboxInformationContainerID, context)
+                drawExistingBboxes(bboxInformationContainerID, context)
+                if (drawCursorGuidelines === true) {
+                    drawGuidelines(context, mouse, currentImage.width, currentImage.height, { scale, canvasX, canvasY, screenX, screenY })
+                }
             } else {
-                drawIntro(context)
+                drawIntro(context, { fontColor, markedFontColor, fontBaseSize, scale, canvasX, canvasY, screenX, screenY })
             }
         }).start()
     }
 
-    const drawImage = (context) => {
-        context.drawImage(currentImage.object, zoomX(0), zoomY(0), zoom(currentImage.width), zoom(currentImage.height))
-    }
-
-    const drawIntro = (context) => {
-        setFontStyles(context, false)
-        context.fillText("USAGE:", zoomX(20), zoomY(50))
-        context.fillText("1. Load your images (jpg, png). Might be slow if many or big.", zoomX(20), zoomY(100))
-        context.fillText("2. Load your classes (yolo *.names format).", zoomX(20), zoomY(150))
-        context.fillText("3. Load or restore, if any, bboxes (zipped yolo/voc/coco files).", zoomX(20), zoomY(200))
-        context.fillText("NOTES:", zoomX(20), zoomY(300))
-        context.fillText("1: Images and classes must be loaded before bbox load.", zoomX(20), zoomY(350))
-        context.fillText("2: Reloading images will RESET BBOXES!", zoomX(20), zoomY(400))
-        context.fillText("3: Check out README.md for more information.", zoomX(20), zoomY(450))
-    }
-
-    const drawNewBbox = (context) => {
+    const drawNewBbox = (bboxInformationContainerID, context) => {
         if (mouse.buttonL === true && currentClass !== null && currentBbox === null) {
             const width = (mouse.realX - mouse.startRealX)
             const height = (mouse.realY - mouse.startRealY)
 
-            setBBoxStyles(context, true)
-            context.strokeRect(zoomX(mouse.startRealX), zoomY(mouse.startRealY), zoom(width), zoom(height))
-            context.fillRect(zoomX(mouse.startRealX), zoomY(mouse.startRealY), zoom(width), zoom(height))
+            setBBoxStyles(context, { borderColor, backgroundColor, markedBorderColor, markedBackgroundColor, marked: true })
+            context.strokeRect(zoomX(mouse.startRealX, scale, canvasX, screenX), zoomY(mouse.startRealY, scale, canvasY, screenY), zoom(width, scale), zoom(height, scale))
+            context.fillRect(zoomX(mouse.startRealX, scale, canvasX, screenX), zoomY(mouse.startRealY, scale, canvasY, screenY), zoom(width, scale), zoom(height, scale))
 
-            drawX(context, mouse.startRealX, mouse.startRealY, width, height)
+            if (drawCenterX === true) {
+                drawCross(context, mouse.startRealX, mouse.startRealY, width, height, { scale, canvasX, canvasY, screenX, screenY })
+            }
 
-            setBboxCoordinates(mouse.startRealX, mouse.startRealY, width, height)
+            setBBoxCoordinates(bboxInformationContainerID, mouse.startRealX, mouse.startRealY, width, height)
         }
     }
 
-    const drawExistingBboxes = (context) => {
+    const drawExistingBboxes = (bboxInformationContainerID, context) => {
         const currentBboxes = bboxes[currentImage.name]
 
         for (let className in currentBboxes) {
             currentBboxes[className].forEach(bbox => {
-                setFontStyles(context, bbox.marked)
-                context.fillText(className, zoomX(bbox.x), zoomY(bbox.y - 2))
+                const marked = bbox.marked
+                setFontStyles(context, { fontColor, markedFontColor, fontBaseSize: 15, scale, marked })
+                context.fillText(className, zoomX(bbox.x, scale, canvasX, screenX), zoomY(bbox.y - 2, scale, canvasY, screenY))
 
-                setBBoxStyles(context, bbox.marked)
-                context.strokeRect(zoomX(bbox.x), zoomY(bbox.y), zoom(bbox.width), zoom(bbox.height))
-                context.fillRect(zoomX(bbox.x), zoomY(bbox.y), zoom(bbox.width), zoom(bbox.height))
+                setBBoxStyles(context, { borderColor, backgroundColor, markedBorderColor, markedBackgroundColor, marked })
+                context.strokeRect(zoomX(bbox.x, scale, canvasX, screenX), zoomY(bbox.y, scale, canvasY, screenY), zoom(bbox.width, scale), zoom(bbox.height, scale))
+                context.fillRect(zoomX(bbox.x, scale, canvasX, screenX), zoomY(bbox.y, scale, canvasY, screenY), zoom(bbox.width, scale), zoom(bbox.height, scale))
 
-                drawX(context, bbox.x, bbox.y, bbox.width, bbox.height)
+                if (drawCenterX === true) {
+                    drawCross(context, bbox.x, bbox.y, bbox.width, bbox.height, { scale, canvasX, canvasY, screenX, screenY })
+                }
 
                 if (bbox.marked === true) {
-                    setBboxCoordinates(bbox.x, bbox.y, bbox.width, bbox.height)
+                    setBBoxCoordinates(bboxInformationContainerID, bbox.x, bbox.y, bbox.width, bbox.height)
                 }
             })
         }
-    }
-
-    const drawX = (context, x, y, width, height) => {
-        if (drawCenterX === true) {
-            const centerX = x + width / 2
-            const centerY = y + height / 2
-
-            context.beginPath()
-            context.moveTo(zoomX(centerX), zoomY(centerY - 10))
-            context.lineTo(zoomX(centerX), zoomY(centerY + 10))
-            context.stroke()
-
-            context.beginPath()
-            context.moveTo(zoomX(centerX - 10), zoomY(centerY))
-            context.lineTo(zoomX(centerX + 10), zoomY(centerY))
-            context.stroke()
-        }
-    }
-
-    const drawCross = (context) => {
-        if (drawGuidelines === true) {
-            context.setLineDash([5])
-
-            context.beginPath()
-            context.moveTo(zoomX(mouse.realX), zoomY(0))
-            context.lineTo(zoomX(mouse.realX), zoomY(currentImage.height))
-            context.stroke()
-
-            context.beginPath()
-            context.moveTo(zoomX(0), zoomY(mouse.realY))
-            context.lineTo(zoomX(currentImage.width), zoomY(mouse.realY))
-            context.stroke()
-        }
-    }
-
-    const setBBoxStyles = (context, marked) => {
-        context.setLineDash([])
-
-        if (marked === false) {
-            context.strokeStyle = borderColor
-            context.fillStyle = backgroundColor
-        } else {
-            context.strokeStyle = markedBorderColor
-            context.fillStyle = markedBackgroundColor
-        }
-    }
-
-    const setBboxCoordinates = (x, y, width, height) => {
-        const x2 = x + width
-        const y2 = y + height
-
-        document.getElementById("bboxInformation").innerHTML = `${width}x${height} (${x}, ${y}) (${x2}, ${y2})`
-    }
-
-    const setFontStyles = (context, marked) => {
-        if (marked === false) {
-            context.fillStyle = fontColor
-        } else {
-            context.fillStyle = markedFontColor
-        }
-
-        context.font = context.font.replace(/\d+px/, `${zoom(fontBaseSize)}px`)
     }
 
     const listenCanvasMouse = () => {
@@ -259,8 +205,8 @@
         screenX = mouse.x
         screenY = mouse.y
 
-        mouse.realX = zoomXInv(mouse.x)
-        mouse.realY = zoomYInv(mouse.y)
+        mouse.realX = zoomXInv(mouse.x, scale, canvasX, screenX)
+        mouse.realY = zoomYInv(mouse.y, scale, canvasY, screenY)
 
         event.preventDefault()
     }
@@ -273,8 +219,8 @@
         const xx = mouse.realX
         const yy = mouse.realY
 
-        mouse.realX = zoomXInv(mouse.x)
-        mouse.realY = zoomYInv(mouse.y)
+        mouse.realX = zoomXInv(mouse.x, scale, canvasX, screenX)
+        mouse.realY = zoomYInv(mouse.y, scale, canvasY, screenY)
 
         if (event.type === "mousedown") {
             mouse.startRealX = mouse.realX
@@ -313,7 +259,19 @@
         resizeBbox()
         changeCursorByLocation()
 
-        panImage(xx, yy)
+        const { diffX, diffY } = panImage(mouse, scale, canvasX, canvasY, xx, yy)
+        canvasX -= diffX
+        canvasY -= diffY
+    }
+    const panImage = (mouse, scale, canvasX, canvasY, xx, yy) => {
+        if (mouse.buttonR === true) {
+            const diffX = mouse.realX - xx
+            const diffY = mouse.realY - yy
+            mouse.realX = zoomXInv(mouse.x, scale, canvasX - diffX, screenX)
+            mouse.realY = zoomYInv(mouse.y, scale, canvasY - diffY, screenY)
+            return { diffX: diffX, diffY: diffY }
+        }
+        return { diffX: 0, diffY: 0 }
     }
 
     const storeNewBbox = (movedWidth, movedHeight) => {
@@ -547,106 +505,76 @@
         }
     }
 
-    const panImage= (xx, yy) => {
-        if (mouse.buttonR === true) {
-            canvasX -= mouse.realX - xx
-            canvasY -= mouse.realY - yy
-
-            mouse.realX = zoomXInv(mouse.x)
-            mouse.realY = zoomYInv(mouse.y)
-        }
-    }
-
-    const zoom = (number) => {
-        return Math.floor(number * scale)
-    }
-
-    const zoomX = (number) => {
-        return Math.floor((number - canvasX) * scale + screenX)
-    }
-
-    const zoomY = (number) => {
-        return Math.floor((number - canvasY) * scale + screenY)
-    }
-
-    const zoomXInv = (number) => {
-        return Math.floor((number - screenX) * (1 / scale) + canvasX)
-    }
-
-    const zoomYInv = (number) => {
-        return Math.floor((number - screenY) * (1 / scale) + canvasY)
-    }
-
-    const listenImageLoad = () => {
-        document.getElementById("images").addEventListener("change", (event) => {
-            const imageList = document.getElementById("imageList")
-
+    const listenImageLoad = (imageInformationContainerID, imagesContainerID, imageListContainerID, bboxesContainerID, restoreBboxesContainerID) => {
+        document.getElementById(imagesContainerID).addEventListener("change", (event) => {
+            const imageList = document.getElementById(imageListContainerID)
+    
             const files = event.target.files
-
+    
             if (files.length > 0) {
-                resetImageList()
-
+                resetImageList(imageListContainerID)
+    
                 document.body.style.cursor = "wait"
-
+    
                 for (let i = 0; i < files.length; i++) {
                     const nameParts = files[i].name.split(".")
-
+    
                     if (extensions.indexOf(nameParts[nameParts.length - 1]) !== -1) {
                         images[files[i].name] = {
                             meta: files[i],
                             index: i
                         }
-
+    
                         const option = document.createElement("option")
-
+    
                         option.value = files[i].name
                         option.innerHTML = files[i].name
-
+    
                         if (i === 0) {
                             option.selected = true
                         }
-
+    
                         imageList.appendChild(option)
                     }
                 }
-
+    
                 const imageArray = Object.keys(images)
-
+    
                 let async = imageArray.length
-
+    
                 for (let image in images) {
                     const reader = new FileReader()
-
+    
                     reader.addEventListener("load", () => {
                         const imageObject = new Image()
-
+    
                         imageObject.addEventListener("load", (event) => {
                             images[image].width = event.target.width
                             images[image].height = event.target.height
-
+    
                             if (--async === 0) {
                                 document.body.style.cursor = "default"
-
-                                setCurrentImage(images[imageArray[0]])
-
+    
+                                setCurrentImage(imageInformationContainerID, images[imageArray[0]])
+    
                                 if (Object.keys(classes).length > 0) {
-                                    document.getElementById("bboxes").disabled = false
-                                    document.getElementById("restoreBboxes").disabled = false
+                                    document.getElementById(bboxesContainerID).disabled = false
+                                    document.getElementById(restoreBboxesContainerID).disabled = false
                                 }
                             }
                         })
-
+    
                         imageObject.src = reader.result
                     })
-
+    
                     reader.readAsDataURL(images[image].meta)
                 }
             }
         })
     }
 
-    const resetImageList = () => {
-        const imageList = document.getElementById("imageList")
+    const resetImageList = (imageListContainerID) => {
+        const imageList = document.getElementById(imageListContainerID)
 
         imageList.innerHTML = ""
 
@@ -655,13 +583,13 @@
         currentImage = null
     }
 
-    const setCurrentImage = (image) => {
+    const setCurrentImage = (imageInformationContainerID, image) => {
         if (resetCanvasOnChange === true) {
             resetCanvasPlacement()
         }
 
         if (fittedZoom === true) {
-            fitZoom(image)
+            scale = fitZoom(image, scale, canvas.width, canvas.height)
         }
 
         const reader = new FileReader()
@@ -681,8 +609,7 @@
 
             imageObject.src = dataUrl
 
-            document.getElementById("imageInformation")
-                .innerHTML = `${image.width}x${image.height}, ${formatBytes(image.meta.size)}`
+            document.getElementById(imageInformationContainerID).innerHTML = `${image.width}x${image.height}, ${formatBytes(image.meta.size)}`
         })
 
         reader.readAsDataURL(image.meta)
@@ -693,106 +620,85 @@
         }
     }
 
-    const fitZoom = (image) => {
-        if (image.width > image.height) {
-            scale = canvas.width / image.width
-        } else {
-            scale = canvas.height / image.height
-        }
-    }
-
-    const formatBytes = (bytes, decimals) => {
-        if (bytes === 0) {
-            return "0 Bytes"
-        }
-
-        const k = 1024
-        const dm = decimals || 2
-        const sizes = ["Bytes", "KB", "MB"]
-        const i = Math.floor(Math.log(bytes) / Math.log(k))
-
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i]
-    }
-
-    const listenImageSelect = () => {
-        const imageList = document.getElementById("imageList")
+    const listenImageSelect = (imageInformationContainerID, imageListContainerID) => {
+        const imageList = document.getElementById(imageListContainerID)
 
         imageList.addEventListener("change", () => {
             imageListIndex = imageList.selectedIndex
 
-            setCurrentImage(images[imageList.options[imageListIndex].innerHTML])
+            setCurrentImage(imageInformationContainerID, images[imageList.options[imageListIndex].innerHTML])
         })
     }
 
-    const listenClassLoad = () => {
-        const classesElement = document.getElementById("classes")
-
+    const listenClassLoad = (classesListContainerID, classesContainerID, bboxesContainerID, restoreBboxesContainerID) => {
+        const classesElement = document.getElementById(classesContainerID)
+    
         classesElement.addEventListener("click", () => {
             classesElement.value = null
         })
-
+    
         classesElement.addEventListener("change", (event) => {
             const files = event.target.files
-
+    
             if (files.length > 0) {
-                resetClassList()
-
+                resetClassList(classesListContainerID)
+    
                 const nameParts = files[0].name.split(".")
                 if (nameParts[nameParts.length - 1] === "txt" || nameParts[nameParts.length - 1] === "names") {
                     const reader = new FileReader()
-
+    
                     reader.addEventListener("load", () => {
                         const lines = reader.result
-
+    
                         const rows = lines.split(/[\r\n]+/)
-
+    
                         if (rows.length > 0) {
-                            const classList = document.getElementById("classList")
-
+                            const classList = document.getElementById(classesListContainerID)
+    
                             for (let i = 0; i < rows.length; i++) {
                                 rows[i] = rows[i].trim()
-
+    
                                 if (rows[i] !== "") {
                                     classes[rows[i]] = i
-
+    
                                     const option = document.createElement("option")
-
+    
                                     option.value = i
                                     option.innerHTML = rows[i]
-
+    
                                     if (i === 0) {
                                         option.selected = true
                                         currentClass = rows[i]
                                     }
-
+    
                                     classList.appendChild(option)
                                 }
                             }
-
-                            setCurrentClass()
-
+    
+                            setCurrentClass(classesListContainerID)
+    
                             if (Object.keys(images).length > 0) {
-                                document.getElementById("bboxes").disabled = false
-                                document.getElementById("restoreBboxes").disabled = false
+                                document.getElementById(bboxesContainerID).disabled = false
+                                document.getElementById(restoreBboxesContainerID).disabled = false
                             }
                         }
                     })
-
+    
                     reader.readAsText(files[0])
                 }
             }
         })
     }
 
-    const resetClassList = () => {
-        document.getElementById("classList").innerHTML = ""
+    const resetClassList = (classesListContainerID) => {
+        document.getElementById(classesListContainerID).innerHTML = ""
 
         classes = {}
         currentClass = null
     }
 
-    const setCurrentClass = () => {
-        const classList = document.getElementById("classList")
+    const setCurrentClass = (classesListContainerID) => {
+        const classList = document.getElementById(classesListContainerID)
 
         currentClass = classList.options[classList.selectedIndex].text
 
@@ -802,40 +708,40 @@
         }
     }
 
-    const listenClassSelect = () => {
-        const classList = document.getElementById("classList")
+    const listenClassSelect = (classesListContainerID) => {
+        const classList = document.getElementById(classesListContainerID)
 
         classList.addEventListener("change", () => {
             classListIndex = classList.selectedIndex
 
-            setCurrentClass()
+            setCurrentClass(classesListContainerID)
         })
     }
 
-    const listenBboxLoad = () => {
-        const bboxesElement = document.getElementById("bboxes")
-
+    const listenBboxLoad = (bboxesContainerID) => {
+        const bboxesElement = document.getElementById(bboxesContainerID)
+    
         bboxesElement.addEventListener("click", () => {
             bboxesElement.value = null
         })
-
+    
         bboxesElement.addEventListener("change", (event) => {
             const files = event.target.files
-
+    
             if (files.length > 0) {
                 resetBboxes()
-
+    
                 for (let i = 0; i < files.length; i++) {
                     const reader = new FileReader()
-
+    
                     const extension = files[i].name.split(".").pop()
-
+    
                     reader.addEventListener("load", () => {
                         if (extension === "txt" || extension === "xml" || extension === "json") {
                             storeBbox(files[i].name, reader.result)
                         } else {
                             const zip = new JSZip()
-
+    
                             zip.loadAsync(reader.result)
                                 .then((result) => {
                                     for (let filename in result.files) {
@@ -847,7 +753,7 @@
                                 })
                         }
                     })
-
+    
                     if (extension === "txt" || extension === "xml"  || extension === "json") {
                         reader.readAsText(files[i])
                     } else {
@@ -1012,8 +918,8 @@
         }
     }
 
-    const listenBboxSave = () => {
-        document.getElementById("saveBboxes").addEventListener("click", () => {
+    const listenBboxSave = (saveBBoxesContainerID) => {
+        document.getElementById(saveBBoxesContainerID).addEventListener("click", () => {
             const zip = new JSZip()
 
             for (let imageName in bboxes) {
@@ -1049,9 +955,9 @@
         })
     }
 
-    const listenBboxVocSave = () => {
-        document.getElementById("saveVocBboxes").addEventListener("click", () => {
-            const folderPath = document.getElementById("vocFolder").value
+    const listenBboxVocSave = (saveBBoxesVOCContainerID, vocFolderContainerID) => {
+        document.getElementById(saveBBoxesVOCContainerID).addEventListener("click", () => {
+            const folderPath = document.getElementById(vocFolderContainerID).value
 
             const zip = new JSZip()
 
@@ -1115,8 +1021,8 @@
         })
     }
 
-    const listenBboxCocoSave = () => {
-        document.getElementById("saveCocoBboxes").addEventListener("click", () => {
+    const listenBboxCocoSave = (saveBBoxesCOCOContainerID) => {
+        document.getElementById(saveBBoxesCOCOContainerID).addEventListener("click", () => {
             const zip = new JSZip()
 
             const result = {
@@ -1182,8 +1088,8 @@
         })
     }
 
-    const listenBboxRestore = () => {
-        document.getElementById("restoreBboxes").addEventListener("click", () => {
+    const listenBboxRestore = (restoreBboxesContainerID) => {
+        document.getElementById(restoreBboxesContainerID).addEventListener("click", () => {
             const item = localStorage.getItem("bboxes")
 
             if (item) {
@@ -1192,101 +1098,101 @@
         })
     }
 
-    const listenKeyboard = () => {
-        const imageList = document.getElementById("imageList")
-        const classList = document.getElementById("classList")
-
+    const listenKeyboard = (imageInformationContainerID, imageListContainerID, classListContainerID) => {
+        const imageList = document.getElementById(imageListContainerID)
+        const classList = document.getElementById(classListContainerID)
+    
         document.addEventListener("keydown", (event) => {
             const key = event.keyCode || event.charCode
-
+    
             if (key === 46 || (key === 8 && event.metaKey === true)) {
                 if (currentBbox !== null) {
                     bboxes[currentImage.name][currentBbox.bbox.class].splice(currentBbox.index, 1)
                     currentBbox = null
-
+    
                     document.body.style.cursor = "default"
                 }
-
+    
                 event.preventDefault()
             }
-
+    
             if (key === 37) {
                 if (imageList.length > 1) {
                     imageList.options[imageListIndex].selected = false
-
+    
                     if (imageListIndex === 0) {
                         imageListIndex = imageList.length - 1
                     } else {
                         imageListIndex--
                     }
-
+    
                     imageList.options[imageListIndex].selected = true
                     imageList.selectedIndex = imageListIndex
-
-                    setCurrentImage(images[imageList.options[imageListIndex].innerHTML])
-
+    
+                    setCurrentImage(imageInformationContainerID, images[imageList.options[imageListIndex].innerHTML])
+    
                     document.body.style.cursor = "default"
                 }
-
+    
                 event.preventDefault()
             }
-
+    
             if (key === 39) {
                 if (imageList.length > 1) {
                     imageList.options[imageListIndex].selected = false
-
+    
                     if (imageListIndex === imageList.length - 1) {
                         imageListIndex = 0
                     } else {
                         imageListIndex++
                     }
-
+    
                     imageList.options[imageListIndex].selected = true
                     imageList.selectedIndex = imageListIndex
-
-                    setCurrentImage(images[imageList.options[imageListIndex].innerHTML])
-
+    
+                    setCurrentImage(imageInformationContainerID, images[imageList.options[imageListIndex].innerHTML])
+    
                     document.body.style.cursor = "default"
                 }
-
+    
                 event.preventDefault()
             }
-
+    
             if (key === 38) {
                 if (classList.length > 1) {
                     classList.options[classListIndex].selected = false
-
+    
                     if (classListIndex === 0) {
                         classListIndex = classList.length - 1
                     } else {
                         classListIndex--
                     }
-
+    
                     classList.options[classListIndex].selected = true
                     classList.selectedIndex = classListIndex
-
-                    setCurrentClass()
+    
+                    setCurrentClass(classListContainerID)
                 }
-
+    
                 event.preventDefault()
             }
-
+    
             if (key === 40) {
                 if (classList.length > 1) {
                     classList.options[classListIndex].selected = false
-
+    
                     if (classListIndex === classList.length - 1) {
                         classListIndex = 0
                     } else {
                         classListIndex++
                     }
-
+    
                     classList.options[classListIndex].selected = true
                     classList.selectedIndex = classListIndex
-
-                    setCurrentClass()
+    
+                    setCurrentClass(classListContainerID)
                 }
-
+    
                 event.preventDefault()
             }
         })
@@ -1309,15 +1215,15 @@
         mouse.startRealY = 0
     }
 
-    const listenImageSearch = () => {
-        document.getElementById("imageSearch").addEventListener("input", (event) => {
+    const listenImageSearch = (imageInformationContainerID, imageSearchContainerID, imageListContainerID) => {
+        document.getElementById(imageSearchContainerID).addEventListener("input", (event) => {
             const value = event.target.value
 
             for (let imageName in images) {
                 if (imageName.indexOf(value) !== -1) {
-                    document.getElementById("imageList").selectedIndex = images[imageName].index
+                    document.getElementById(imageListContainerID).selectedIndex = images[imageName].index
 
-                    setCurrentImage(images[imageName])
+                    setCurrentImage(imageInformationContainerID, images[imageName])
 
                     break
                 }
@@ -1325,8 +1231,8 @@
         })
     }
 
-    const listenImageCrop = () => {
-        document.getElementById("cropImages").addEventListener("click", () => {
+    const listenImageCrop = (canvasContainerID, cropImagesContainerID) => {
+        document.getElementById(cropImagesContainerID).addEventListener("click", () => {
             const zip = new JSZip()
 
             let x = 0
@@ -1351,7 +1257,7 @@
                             const imageObject = new Image()
 
                             imageObject.addEventListener("load", () => {
-                                const temporaryCanvas = document.createElement("canvas")
+                                const temporaryCanvas = document.createElement(canvasContainerID)
 
                                 temporaryCanvas.style.display = "none"
                                 temporaryCanvas.width = bbox.width
