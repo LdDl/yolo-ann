@@ -1,14 +1,27 @@
 // Adds guidelines to user's cursor
-const drawGuidelines = (context, mouse, imgWidth, imgHeight, { scale = 1, canvasX, canvasY, screenX, screenY }) => {
-    context.setLineDash([5])
+const drawGuidelines = (canvas, canvasMouse, strokeColor = '#001f3f') => {
+    const horizontalGuideline = new fabric.Line([0, canvasMouse.y, canvas.width, canvasMouse.y], {
+        stroke: strokeColor,
+        strokeWidth: 1,
+        selectable: false,
+        evented: false,
+        hoverCursor: 'default',
+        strokeDashArray: [5, 5]
+    });
+    canvas.remove(canvas.hLine);
+    canvas.add(horizontalGuideline);
+    canvas.hLine = horizontalGuideline;
 
-    context.beginPath()
-    context.moveTo(zoomX(mouse.realX, scale, canvasX, screenX), zoomY(0, scale, canvasY, screenY))
-    context.lineTo(zoomX(mouse.realX, scale, canvasX, screenX), zoomY(imgHeight, scale, canvasY, screenY))
-    context.stroke()
-
-    context.beginPath()
-    context.moveTo(zoomX(0, scale, canvasX, screenX), zoomY(mouse.realY, scale, canvasY, screenY))
-    context.lineTo(zoomX(imgWidth, scale, canvasX, screenX), zoomY(mouse.realY, scale, canvasY, screenY))
-    context.stroke()
+    const verticalGuideline = new fabric.Line([canvasMouse.x, 0, canvasMouse.x, canvas.height], {
+        stroke: strokeColor,
+        strokeWidth: 1,
+        selectable: false,
+        evented: false,
+        hoverCursor: 'default',
+        strokeDashArray: [5, 5]
+    });
+    canvas.remove(canvas.vLine);
+    canvas.add(verticalGuideline);
+    canvas.vLine = verticalGuideline;
 }
+

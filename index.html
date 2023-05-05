@@ -12,7 +12,6 @@
     <script src="filesaver.min.js"></script>
 
     <script src="utils.js"></script>
-    <script src="canvas_text.js"></script>
     <script src="canvas_intro.js"></script>
     <script src="canvas_bbox.js"></script>
     <script src="canvas_cursor.js"></script>
@@ -38,7 +37,7 @@
                 <hr />
 
                 <label for="classes">Classes:</label>
-                <input type="file" id="classes" name="classes" />
+                <input type="file" id="classes" name="classes" accept=".txt,.names,.csv" />
                 <label for="classList"></label><select name="classList" id="classList" size="10" multiple></select>
 
                 <div id="bboxInformation"></div>
@@ -67,7 +66,7 @@
                             Mouse WHEEL - zoom in/out image
                         </li>
                         <li>
-                            Mouse RIGHT BUTTON - pan image
+                            Mouse WHEEL BUTTON - pan image
                         </li>
                         <li>
                             Arrows LEFT and RIGHT - cycle images
