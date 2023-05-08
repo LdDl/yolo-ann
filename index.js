@@ -157,6 +157,7 @@
             resizing: null
         }
     }
+
     const refreshCanvas = () => {
         canvas.clear()
         drawImageScratch(currentImage, canvas)
@@ -297,12 +298,12 @@
             bbox: newBBox,
         }
 
-        canvas.setActiveObject(drawingObject.rect)
         canvas.add(drawingObject.rect)
         canvas.add(drawingObject.label)
         if (drawCenterX === true) {
             canvas.add(drawingObject.vertical, drawingObject.horizontal)
         }
+        canvas.setActiveObject(drawingObject.rect) // @todo: this is not highlighing object, which is strange to me
     }
     
     const eventDrawingRect = (event) => {
@@ -315,7 +316,7 @@
           height: pointer.y - drawingObject.rect.top,
           dirty: true,
         })
-        // canvas.requestRenderAllBound() // Do we need this?
+        canvas.requestRenderAllBound() // Do we need this?
     }
     
     const doneDrawingRect = (event) => {
@@ -323,6 +324,25 @@
             return
         }
         isDrawingMode = false;
+        
+        // Try to evade negative values of width and height. It could happen when user draws from right to left or from bottom to top
+        if (drawingObject.rect.width < 0) {
+            const newWidth = Math.abs(drawingObject.rect.width);
+            const newLeft = drawingObject.rect.left - newWidth;
+            drawingObject.rect.set({
+                left: newLeft,
+                width: newWidth,
+            })
+        }
+        if (drawingObject.rect.height < 0) {
+            const newHeight = Math.abs(drawingObject.rect.height);
+            const newTop = drawingObject.rect.top - newHeight;
+            drawingObject.rect.set({
+                top: newTop,
+                height: newHeight,
+            })
+        }
+
         if (drawingObject.rect && (drawingObject.rect.width <= minBBoxWidth || drawingObject.rect.height <= minBBoxHeight)) {
             // Do not draw bounding box if it is too small
             canvas.remove(drawingObject.rect)
@@ -350,7 +370,7 @@
             }
         };
         drawingObject.rect.fire('modified', mockOptions)
-        
+        canvas.setActiveObject(drawingObject.rect)
         // Simply store new bounding box
         saveBBox(bboxes, drawingObject.bbox, currentImage.name)
     }
