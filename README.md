@@ -42,9 +42,18 @@ Fast and efficient BBox annotation for your images in YOLO, and now, VOC/COCO fo
 
 UI should look something like this:
 
-<img src="cute.png" width="720">
+<img src="ui_1.png" width="720">
 
-## COMPATIBILITY
+## Differences from original repository
+Main differences are:
+* Using `FabricJS` instead of unnamed one. Tons of changes have been done, if you find a bug, please open an issue or open a pull request.
+* Updated version of `jszip`
+* Updated version of `FileSaver.js`
+* Panning is done via wheel button
+* Accept *.names, *.csv and *.txt extensions for classnames file
+
+
+## Compatibility
 All browsers that support ES6 should work. Tested with:
 
 * Chrome v65
@@ -63,7 +72,7 @@ No idea about IE/Edge.
 |[FabricJS](https://github.com/fabricjs/fabric.js#fabricjs)| Used instead of some legacy [unidentified library from original repository](https://github.com/drainingsun/ybat/blob/master/canvas.min.js)|[FabricJS license](https://github.com/fabricjs/fabric.js/blob/master/LICENSE)|
 
 
-## FEATURES
+## Feature
 * Basic Pascal VOC and COCO format support.
 * Works in your browser on any platform.
 * Complete YOLO format support.
@@ -74,9 +83,6 @@ No idea about IE/Edge.
 * Ability to crop your bboxes and save the resulting images.
 * Information on both image and current bbox.
 
-## CAVEATS
+## Caveats
 * Loading many and or big images might take a while. This is because tool needs to figure out image dimensions.  
 * Cropping many items might crash your browser. This and above will be fixed at some point.
-
-## CONTRIBUTING
-Go nuts! Just don't forget to follow eslint guidelines. Credit will be given where it's due.
