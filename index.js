@@ -13,15 +13,13 @@
     const markedBackgroundColor = "rgba(255, 133, 27, 0.2)" // Marked bbox fill color
     const minBBoxWidth = 5 // Minimal width of bbox
     const minBBoxHeight = 5 // Minimal height of bbox
-    const scrollSpeed = 1.1 // Multiplying factor of wheel speed
     const minZoom = 0.1 // Smallest zoom allowed
     const maxZoom = 5 // Largest zoom allowed
-    const edgeSize = 5 // Resize activation area in pixels
     const resetCanvasOnChange = true // Whether to return to default position and zoom on image change
     const defaultScale = 0.5 // Default zoom level for images. Can be overridden with fittedZoom
     const drawCenterX = true // Whether to draw a cross in the middle of bbox
+    const linePaddingPercent = 0.2 // Padding for cross
     const drawCursorGuidelines = true // Whether to draw guidelines for cursor
-    const fittedZoom = true // Whether to fit image in the screen by it's largest dimension. Overrides defaultScale
 
     // Main containers
     let canvas = null
@@ -50,29 +48,18 @@
 
     let currentImage = null
     let currentClass = null
-    let currentBbox = null
+    let currentBBox = null
     let imageListIndex = 0
     let classListIndex = 0
 
-    // Scaling containers
-    let scale = defaultScale
-    let canvasX = 0
-    let canvasY = 0
-    let screenX = 0
-    let screenY = 0
+    // Keep tracking objects in drawing mode
+    var isDrawingMode = false
+    var drawingObject = null
 
-    // Mouse container
-    const mouse = {
-        x: 0,
-        y: 0,
-        realX: 0,
-        realY: 0,
-        buttonL: false,
-        buttonR: false,
-        startRealX: 0,
-        startRealY: 0
-    }
-
+    // Panning
+    var isPanning = false
+    let lastPosX = 0;
+    let lastPosY = 0;
     // Prevent context menu on right click - it's used for panning
     document.addEventListener("contextmenu", function (e) {
         e.preventDefault()
@@ -111,7 +98,7 @@
     document.onreadystatechange = () => {
         if (document.readyState === "complete") {
             initCanvas(canvasID, bboxInformationID)
-            listenCanvasMouse()
+            listenCanvasMouse(bboxInformationID)
             listenImageLoad(imageInformationID, imagesID, imageListID, bboxesID, restoreBboxesID)
             listenImageSelect(imageInformationID, imageListID)
             listenClassLoad(classListID, classesID, bboxesID, restoreBboxesID)
@@ -128,175 +115,289 @@
     }
 
     const initCanvas = (canvasContainerID, bboxInformationContainerID) => {
-        canvas = new Canvas(canvasContainerID, document.getElementById("right").clientWidth, window.innerHeight - 20)
 
-        canvas.on("draw", (context) => {
-            if (currentImage !== null) {
-                drawImage(context, currentImage.object, currentImage.width, currentImage.height, scale, canvasX, canvasY, screenX, screenY)
-                drawNewBbox(bboxInformationContainerID, context)
-                drawExistingBboxes(bboxInformationContainerID, context)
-                if (drawCursorGuidelines === true) {
-                    drawGuidelines(context, mouse, currentImage.width, currentImage.height, { scale, canvasX, canvasY, screenX, screenY })
-                }
-            } else {
-                drawIntro(context, { fontColor, markedFontColor, fontBaseSize, scale, canvasX, canvasY, screenX, screenY })
-            }
-        }).start()
+        canvas = new fabric.Canvas(canvasContainerID, {
+            preserveObjectStacking: true,
+            selection: false // Disable selection of multiple objects by "click+drag" or "shift+click"
+        })
+        canvas.setHeight(window.innerHeight - 20)
+        canvas.setWidth(document.getElementById("right").clientWidth)
+
+        if (drawCursorGuidelines === true) {
+            canvas.hoverCursor = 'crosshair'
+            canvas.on('mouse:move', function (opt) {
+                const canvasMouse = canvas.getPointer(opt.e);
+                drawGuidelines(canvas, canvasMouse, borderColor)
+            })
+        }
+        drawIntro(canvas, { fontColor, markedFontColor, fontBaseSize: fontBaseSize * defaultScale })
+
+        canvas.on('selection:created', changeCurrentBBox)
+        canvas.on('selection:updated', changeCurrentBBox)
     }
 
-    const drawNewBbox = (bboxInformationContainerID, context) => {
-        if (mouse.buttonL === true && currentClass !== null && currentBbox === null) {
-            const width = (mouse.realX - mouse.startRealX)
-            const height = (mouse.realY - mouse.startRealY)
-
-            setBBoxStyles(context, { borderColor, backgroundColor, markedBorderColor, markedBackgroundColor, marked: true })
-            context.strokeRect(zoomX(mouse.startRealX, scale, canvasX, screenX), zoomY(mouse.startRealY, scale, canvasY, screenY), zoom(width, scale), zoom(height, scale))
-            context.fillRect(zoomX(mouse.startRealX, scale, canvasX, screenX), zoomY(mouse.startRealY, scale, canvasY, screenY), zoom(width, scale), zoom(height, scale))
-
-            if (drawCenterX === true) {
-                drawCross(context, mouse.startRealX, mouse.startRealY, width, height, { scale, canvasX, canvasY, screenX, screenY })
-            }
-
-            setBBoxCoordinates(bboxInformationContainerID, mouse.startRealX, mouse.startRealY, width, height)
+    const changeCurrentBBox = (options) => {
+        const event = options.e
+        if (event === undefined) {
+            return
+        }
+        const selectedObjects = options.selected;
+        if (selectedObjects.length < 1) {
+            return
+        }
+        const selectedObject = selectedObjects[0]
+        currentBBox = {
+            bbox: selectedObject.underlying_bbox,
+            index: bboxes[currentImage.name][selectedObject.underlying_bbox.class].length-1,
+            originalX: selectedObject.underlying_bbox.x,
+            originalY: selectedObject.underlying_bbox.y,
+            originalWidth: selectedObject.underlying_bbox.width,
+            originalHeight: selectedObject.underlying_bbox.height,
+            moving: false,
+            resizing: null
         }
     }
 
-    const drawExistingBboxes = (bboxInformationContainerID, context) => {
+    const refreshCanvas = () => {
+        canvas.clear()
+        drawImageScratch(currentImage, canvas)
+        // drawNewBbox(context)
+        drawExistingBboxes(bboxInformationID, canvas)
+    }
+
+    const drawExistingBboxes = (bboxInformationContainerID, canvas) => {
+        const imgScale = currentImage.scale
         const currentBboxes = bboxes[currentImage.name]
 
         for (let className in currentBboxes) {
             currentBboxes[className].forEach(bbox => {
-                const marked = bbox.marked
-                setFontStyles(context, { fontColor, markedFontColor, fontBaseSize: 15, scale, marked })
-                context.fillText(className, zoomX(bbox.x, scale, canvasX, screenX), zoomY(bbox.y - 2, scale, canvasY, screenY))
 
-                setBBoxStyles(context, { borderColor, backgroundColor, markedBorderColor, markedBackgroundColor, marked })
-                context.strokeRect(zoomX(bbox.x, scale, canvasX, screenX), zoomY(bbox.y, scale, canvasY, screenY), zoom(bbox.width, scale), zoom(bbox.height, scale))
-                context.fillRect(zoomX(bbox.x, scale, canvasX, screenX), zoomY(bbox.y, scale, canvasY, screenY), zoom(bbox.width, scale), zoom(bbox.height, scale))
+                // Draw bounding box itself
+                const { rect, label, vertical, horizontal } = newRect(bbox, className, {
+                    scale: imgScale,
+                    rect_props: {
+                        stroke: borderColor,
+                        activeStroke: markedBorderColor,
+                        strokeWidth: 1,
+                        fill: backgroundColor,
+                        activeFill: markedBackgroundColor,
+                        opacity: 1.0,
+                    },
+                    label_props: {
+                        fontSize: fontBaseSize * defaultScale,
+                        fill: fontColor,
+                        activeFill: markedFontColor,
+                    },
+                    cross_props: {
+                        enabled: drawCenterX,
+                        paddingPercentage: linePaddingPercent,
+                        stroke: borderColor,
+                        activeStroke: markedBorderColor,
+                    },
+                    container: { id: bboxInformationContainerID }
+                })
 
+                // Finally add the bounding box, label and possibly cross to the canvas
+                canvas.add(rect)
+                canvas.add(label)
                 if (drawCenterX === true) {
-                    drawCross(context, bbox.x, bbox.y, bbox.width, bbox.height, { scale, canvasX, canvasY, screenX, screenY })
-                }
-
-                if (bbox.marked === true) {
-                    setBBoxCoordinates(bboxInformationContainerID, bbox.x, bbox.y, bbox.width, bbox.height)
+                    canvas.add(vertical, horizontal)
                 }
             })
         }
     }
 
-    const listenCanvasMouse = () => {
-        canvas.element.addEventListener("wheel", trackWheel, {passive: false})
-        canvas.element.addEventListener("mousemove", trackPointer)
-        canvas.element.addEventListener("mousedown", trackPointer)
-        canvas.element.addEventListener("mouseup", trackPointer)
-        canvas.element.addEventListener("mouseout", trackPointer)
+    const listenCanvasMouse = (bboxInformationContainerID) => {
+        canvas.on('mouse:wheel', trackWheel)
+        canvas.on('mouse:down:before', wheelPanningStart)
+        canvas.on('mouse:move', wheelPanningMove)
+        canvas.on('mouse:up:before', wheelPanningDone)
+
+        canvas.on('mouse:down:before', (event) => startNewRect(event, bboxInformationContainerID))
+        canvas.on('mouse:move', eventDrawingRect)
+        canvas.on('mouse:up', doneDrawingRect)
     }
 
-    const trackWheel = (event) => {
-        if (event.deltaY < 0) {
-            scale = Math.min(maxZoom, scale * scrollSpeed)
-        } else {
-            scale = Math.max(minZoom, scale * (1 / scrollSpeed))
+    const wheelPanningStart = (event) => {
+        // Make sure that panning started with WHEEL click
+        if (event.e.button !== 1) {
+            return
+        }
+        isPanning = true
+        lastPosX = event.e.clientX;
+        lastPosY = event.e.clientY;
+    }
+
+    const wheelPanningMove = (event) => {
+        if (isPanning === false) {
+            return
+        }
+        const deltaX = event.e.clientX - lastPosX;
+        const deltaY = event.e.clientY - lastPosY;
+        lastPosX = event.e.clientX;
+        lastPosY = event.e.clientY;
+        canvas.viewportTransform[4] += deltaX;
+        canvas.viewportTransform[5] += deltaY;
+        // canvas.requestRenderAll();
+    }
+
+    const wheelPanningDone = (event) => {
+        if (isPanning === true && event.e.button === 1) {
+            isPanning = false
+        }
+    }
+
+    const startNewRect = (event, bboxInformationContainerID) => {
+        // Make sure that drawing started with LEFT mouse click
+        if (event.e.button !== 0) {
+            return
+        }
+        if (canvas.getActiveObject()) {
+            return
+        }
+        if (canvas.getActiveObject() || currentImage === null || currentImage === undefined || currentClass === null || currentClass === undefined) {
+            // Prevent drawing new bounding box when no image or classname is selected
+            // If some an existing object is currently selected prevent drawing also
+            return
+        }
+        const imgScale = currentImage.scale
+        isDrawingMode = true
+        const pointer = canvas.getPointer(event.e)
+        
+        const newBBox = canvasRectToBBox({left: pointer.x, top: pointer.y, width: 0, height: 0}, imgScale, currentClass)
+
+        const { rect, label, vertical, horizontal } = newRect(newBBox, currentClass, {
+            scale: imgScale,
+            rect_props: {
+                stroke: borderColor,
+                activeStroke: markedBorderColor,
+                strokeWidth: 1,
+                fill: backgroundColor,
+                activeFill: markedBackgroundColor,
+                opacity: 1.0,
+            },
+            label_props: {
+                fontSize: fontBaseSize * defaultScale,
+                fill: fontColor,
+                activeFill: markedFontColor,
+            },
+            cross_props: {
+                enabled: drawCenterX,
+                paddingPercentage: linePaddingPercent,
+                stroke: borderColor,
+                activeStroke: markedBorderColor,
+            },
+            container: { id: bboxInformationContainerID }
+        })
+
+        drawingObject = {
+            rect: rect,
+            label: label,
+            vertical: vertical,
+            horizontal: horizontal,
+            bbox: newBBox,
         }
 
-        canvasX = mouse.realX
-        canvasY = mouse.realY
-        screenX = mouse.x
-        screenY = mouse.y
-
-        mouse.realX = zoomXInv(mouse.x, scale, canvasX, screenX)
-        mouse.realY = zoomYInv(mouse.y, scale, canvasY, screenY)
-
-        event.preventDefault()
+        canvas.add(drawingObject.rect)
+        canvas.add(drawingObject.label)
+        if (drawCenterX === true) {
+            canvas.add(drawingObject.vertical, drawingObject.horizontal)
+        }
+        canvas.setActiveObject(drawingObject.rect) // @todo: this is not highlighing object, which is strange to me
     }
+    
+    const eventDrawingRect = (event) => {
+        if (!isDrawingMode) {
+            return
+        }
+        const pointer = canvas.getPointer(event.e)
+        drawingObject.rect.set({
+          width: pointer.x - drawingObject.rect.left,
+          height: pointer.y - drawingObject.rect.top,
+          dirty: true,
+        })
+        canvas.requestRenderAllBound() // Do we need this?
+    }
+    
+    const doneDrawingRect = (event) => {
+        if (!isDrawingMode) {
+            return
+        }
+        isDrawingMode = false;
+        
+        // Try to evade negative values of width and height. It could happen when user draws from right to left or from bottom to top
+        if (drawingObject.rect.width < 0) {
+            const newWidth = Math.abs(drawingObject.rect.width);
+            const newLeft = drawingObject.rect.left - newWidth;
+            drawingObject.rect.set({
+                left: newLeft,
+                width: newWidth,
+            })
+        }
+        if (drawingObject.rect.height < 0) {
+            const newHeight = Math.abs(drawingObject.rect.height);
+            const newTop = drawingObject.rect.top - newHeight;
+            drawingObject.rect.set({
+                top: newTop,
+                height: newHeight,
+            })
+        }
 
-    const trackPointer = (event) => {
-        mouse.bounds = canvas.element.getBoundingClientRect()
-        mouse.x = event.clientX - mouse.bounds.left
-        mouse.y = event.clientY - mouse.bounds.top
-
-        const xx = mouse.realX
-        const yy = mouse.realY
-
-        mouse.realX = zoomXInv(mouse.x, scale, canvasX, screenX)
-        mouse.realY = zoomYInv(mouse.y, scale, canvasY, screenY)
-
-        if (event.type === "mousedown") {
-            mouse.startRealX = mouse.realX
-            mouse.startRealY = mouse.realY
-
-            if (event.which === 3) {
-                mouse.buttonR = true
-            } else if (event.which === 1) {
-                mouse.buttonL = true
+        if (drawingObject.rect && (drawingObject.rect.width <= minBBoxWidth || drawingObject.rect.height <= minBBoxHeight)) {
+            // Do not draw bounding box if it is too small
+            canvas.remove(drawingObject.rect)
+            canvas.remove(drawingObject.label)
+            if (drawCenterX === true) {
+                canvas.remove(drawingObject.vertical)
+                canvas.remove(drawingObject.horizontal)
             }
-        } else if (event.type === "mouseup" || event.type === "mouseout") {
-            if (mouse.buttonL === true && currentImage !== null && currentClass !== null) {
-                const movedWidth = Math.max((mouse.startRealX - mouse.realX), (mouse.realX - mouse.startRealX))
-                const movedHeight = Math.max((mouse.startRealY - mouse.realY), (mouse.realY - mouse.startRealY))
+            return
+        }
+        if (!drawingObject.rect) {
+            console.log('Is it possible to reach this condition?')
+        }
+        drawingObject.rect.setCoords() // Do we need this?
 
-                if (movedWidth > minBBoxWidth && movedHeight > minBBoxHeight) { // Only add if bbox is big enough
-                    if (currentBbox === null) { // And only when no other bbox is selected
-                        storeNewBbox(movedWidth, movedHeight)
-                    } else { // Bbox was moved or resized - update original data
-                        updateBboxAfterTransform()
-                    }
-                } else { // (un)Mark a bbox
-                    setBboxMarkedState()
-
-                    if (currentBbox !== null) { // Bbox was moved or resized - update original data
-                        updateBboxAfterTransform()
-                    }
-                }
+        // Mock up options to trigger 'modified' event so bounding box is forced to be re-calculated
+        const mockOptions = {
+            target: {
+                left: drawingObject.rect.left,
+                top: drawingObject.rect.top,
+                width: drawingObject.rect.width,
+                height: drawingObject.rect.height,
+                scaleX: 1,
+                scaleY: 1,
             }
-
-            mouse.buttonR = false
-            mouse.buttonL = false
-        }
-
-        moveBbox()
-        resizeBbox()
-        changeCursorByLocation()
-
-        const { diffX, diffY } = panImage(mouse, scale, canvasX, canvasY, xx, yy)
-        canvasX -= diffX
-        canvasY -= diffY
-    }
-    const panImage = (mouse, scale, canvasX, canvasY, xx, yy) => {
-        if (mouse.buttonR === true) {
-            const diffX = mouse.realX - xx
-            const diffY = mouse.realY - yy
-            mouse.realX = zoomXInv(mouse.x, scale, canvasX - diffX, screenX)
-            mouse.realY = zoomYInv(mouse.y, scale, canvasY - diffY, screenY)
-            return { diffX: diffX, diffY: diffY }
-        }
-        return { diffX: 0, diffY: 0 }
+        };
+        drawingObject.rect.fire('modified', mockOptions)
+        canvas.setActiveObject(drawingObject.rect)
+        // Simply store new bounding box
+        saveBBox(bboxes, drawingObject.bbox, currentImage.name)
     }
 
-    const storeNewBbox = (movedWidth, movedHeight) => {
-        const bbox = {
-            x: Math.min(mouse.startRealX, mouse.realX),
-            y: Math.min(mouse.startRealY, mouse.realY),
-            width: movedWidth,
-            height: movedHeight,
+    const canvasRectToBBox = (rect, scale, classname) => {
+        const new_bbox = {
+            x: rect.left / scale,
+            y: rect.top / scale,
+            width: rect.width / scale,
+            height: rect.height / scale,
             marked: true,
-            class: currentClass
+            class: classname
         }
-
-        if (typeof bboxes[currentImage.name] === "undefined") {
-            bboxes[currentImage.name] = {}
+        return new_bbox
+    }
+    
+    const saveBBox = (storage, bbox, imageName) => {
+        if (typeof storage[imageName] === "undefined") {
+            storage[imageName] = {}
         }
-
-        if (typeof bboxes[currentImage.name][currentClass] === "undefined") {
-            bboxes[currentImage.name][currentClass] = []
+        if (typeof storage[imageName][bbox.class] === "undefined") {
+            storage[imageName][bbox.class] = []
         }
-
-        bboxes[currentImage.name][currentClass].push(bbox)
-
-        currentBbox = {
+        storage[imageName][bbox.class].push(bbox)
+        currentBBox = {
             bbox: bbox,
-            index: bboxes[currentImage.name][currentClass].length - 1,
+            index: storage[imageName][bbox.class].length - 1,
             originalX: bbox.x,
             originalY: bbox.y,
             originalWidth: bbox.width,
@@ -306,203 +407,16 @@
         }
     }
 
-    const updateBboxAfterTransform = () => {
-        if (currentBbox.resizing !== null) {
-            if (currentBbox.bbox.width < 0) {
-                currentBbox.bbox.width = Math.abs(currentBbox.bbox.width)
-                currentBbox.bbox.x -= currentBbox.bbox.width
-            }
-
-            if (currentBbox.bbox.height < 0) {
-                currentBbox.bbox.height = Math.abs(currentBbox.bbox.height)
-                currentBbox.bbox.y -= currentBbox.bbox.height
-            }
-
-            currentBbox.resizing = null
-        }
-
-        currentBbox.bbox.marked = true
-        currentBbox.originalX = currentBbox.bbox.x
-        currentBbox.originalY = currentBbox.bbox.y
-        currentBbox.originalWidth = currentBbox.bbox.width
-        currentBbox.originalHeight = currentBbox.bbox.height
-        currentBbox.moving = false
-    }
-
-    const setBboxMarkedState = () => {
-        if (currentBbox === null || (currentBbox.moving === false && currentBbox.resizing === null)) {
-            const currentBboxes = bboxes[currentImage.name]
-
-            let wasInside = false
-            let smallestBbox = Number.MAX_SAFE_INTEGER
-
-            for (let className in currentBboxes) {
-                for (let i = 0; i < currentBboxes[className].length; i++) {
-                    const bbox = currentBboxes[className][i]
-
-                    bbox.marked = false
-
-                    const endX = bbox.x + bbox.width
-                    const endY = bbox.y + bbox.height
-                    const size = bbox.width * bbox.height
-
-                    if (mouse.startRealX >= bbox.x && mouse.startRealX <= endX
-                        && mouse.startRealY >= bbox.y && mouse.startRealY <= endY) {
-
-                        wasInside = true
-
-                        if (size < smallestBbox) { // Make sure select the inner if it's inside a bigger one
-                            smallestBbox = size
-                            currentBbox = {
-                                bbox: bbox,
-                                index: i,
-                                originalX: bbox.x,
-                                originalY: bbox.y,
-                                originalWidth: bbox.width,
-                                originalHeight: bbox.height,
-                                moving: false,
-                                resizing: null
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (wasInside === false) { // No more selected bbox
-                currentBbox = null
-            }
-        }
-    }
-
-    const moveBbox = () => {
-        if (mouse.buttonL === true && currentBbox !== null) {
-            const endX = currentBbox.bbox.x + currentBbox.bbox.width
-            const endY = currentBbox.bbox.y + currentBbox.bbox.height
-
-            // Only if pointer inside the bbox
-            if (mouse.startRealX >= (currentBbox.bbox.x + edgeSize) && mouse.startRealX <= (endX - edgeSize)
-                && mouse.startRealY >= (currentBbox.bbox.y + edgeSize) && mouse.startRealY <= (endY - edgeSize)) {
-
-                currentBbox.moving = true
-            }
-
-            if (currentBbox.moving === true) {
-                currentBbox.bbox.x = currentBbox.originalX + (mouse.realX - mouse.startRealX)
-                currentBbox.bbox.y = currentBbox.originalY + (mouse.realY - mouse.startRealY)
-            }
-        }
-    }
-
-    const resizeBbox = () => {
-        if (mouse.buttonL === true && currentBbox !== null) {
-            const topLeftX = currentBbox.bbox.x
-            const topLeftY = currentBbox.bbox.y
-            const bottomLeftX = currentBbox.bbox.x
-            const bottomLeftY = currentBbox.bbox.y + currentBbox.bbox.height
-            const topRightX = currentBbox.bbox.x + currentBbox.bbox.width
-            const topRightY = currentBbox.bbox.y
-            const bottomRightX = currentBbox.bbox.x + currentBbox.bbox.width
-            const bottomRightY = currentBbox.bbox.y + currentBbox.bbox.height
-
-            // Get correct corner
-            if (mouse.startRealX >= (topLeftX - edgeSize) && mouse.startRealX <= (topLeftX + edgeSize)
-                && mouse.startRealY >= (topLeftY - edgeSize) && mouse.startRealY <= (topLeftY + edgeSize)) {
-
-                currentBbox.resizing = "topLeft"
-            } else if (mouse.startRealX >= (bottomLeftX - edgeSize) && mouse.startRealX <= (bottomLeftX + edgeSize)
-                && mouse.startRealY >= (bottomLeftY - edgeSize) && mouse.startRealY <= (bottomLeftY + edgeSize)) {
-
-                currentBbox.resizing = "bottomLeft"
-            } else if (mouse.startRealX >= (topRightX - edgeSize) && mouse.startRealX <= (topRightX + edgeSize)
-                && mouse.startRealY >= (topRightY - edgeSize) && mouse.startRealY <= (topRightY + edgeSize)) {
-
-                currentBbox.resizing = "topRight"
-            } else if (mouse.startRealX >= (bottomRightX - edgeSize) && mouse.startRealX <= (bottomRightX + edgeSize)
-                && mouse.startRealY >= (bottomRightY - edgeSize) && mouse.startRealY <= (bottomRightY + edgeSize)) {
-
-                currentBbox.resizing = "bottomRight"
-            }
-
-            if (currentBbox.resizing === "topLeft") {
-                currentBbox.bbox.x = mouse.realX
-                currentBbox.bbox.y = mouse.realY
-                currentBbox.bbox.width = currentBbox.originalX + currentBbox.originalWidth - mouse.realX
-                currentBbox.bbox.height = currentBbox.originalY + currentBbox.originalHeight - mouse.realY
-            } else if (currentBbox.resizing === "bottomLeft") {
-                currentBbox.bbox.x = mouse.realX
-                currentBbox.bbox.y = mouse.realY - (mouse.realY - currentBbox.originalY)
-                currentBbox.bbox.width = currentBbox.originalX + currentBbox.originalWidth - mouse.realX
-                currentBbox.bbox.height = mouse.realY - currentBbox.originalY
-            } else if (currentBbox.resizing === "topRight") {
-                currentBbox.bbox.x = mouse.realX - (mouse.realX - currentBbox.originalX)
-                currentBbox.bbox.y = mouse.realY
-                currentBbox.bbox.width = mouse.realX - currentBbox.originalX
-                currentBbox.bbox.height = currentBbox.originalY + currentBbox.originalHeight - mouse.realY
-            } else if (currentBbox.resizing === "bottomRight") {
-                currentBbox.bbox.x = mouse.realX - (mouse.realX - currentBbox.originalX)
-                currentBbox.bbox.y = mouse.realY - (mouse.realY - currentBbox.originalY)
-                currentBbox.bbox.width = mouse.realX - currentBbox.originalX
-                currentBbox.bbox.height = mouse.realY - currentBbox.originalY
-            }
-        }
-    }
-
-    const changeCursorByLocation = () => {
-        if (currentImage !== null) {
-            const currentBboxes = bboxes[currentImage.name]
-
-            for (let className in currentBboxes) {
-                for (let i = 0; i < currentBboxes[className].length; i++) {
-                    const bbox = currentBboxes[className][i]
-
-                    const endX = bbox.x + bbox.width
-                    const endY = bbox.y + bbox.height
-
-                    if (mouse.realX >= (bbox.x + edgeSize) && mouse.realX <= (endX - edgeSize)
-                        && mouse.realY >= (bbox.y + edgeSize) && mouse.realY <= (endY - edgeSize)) {
-
-                        document.body.style.cursor = "pointer"
-
-                        break
-                    } else {
-                        document.body.style.cursor = "default"
-                    }
-                }
-            }
-
-            if (currentBbox !== null) {
-                const topLeftX = currentBbox.bbox.x
-                const topLeftY = currentBbox.bbox.y
-                const bottomLeftX = currentBbox.bbox.x
-                const bottomLeftY = currentBbox.bbox.y + currentBbox.bbox.height
-                const topRightX = currentBbox.bbox.x + currentBbox.bbox.width
-                const topRightY = currentBbox.bbox.y
-                const bottomRightX = currentBbox.bbox.x + currentBbox.bbox.width
-                const bottomRightY = currentBbox.bbox.y + currentBbox.bbox.height
-
-                if (mouse.realX >= (topLeftX + edgeSize) && mouse.realX <= (bottomRightX - edgeSize)
-                    && mouse.realY >= (topLeftY + edgeSize) && mouse.realY <= (bottomRightY - edgeSize)) {
-
-                    document.body.style.cursor = "move"
-                } else if (mouse.realX >= (topLeftX - edgeSize) && mouse.realX <= (topLeftX + edgeSize)
-                    && mouse.realY >= (topLeftY - edgeSize) && mouse.realY <= (topLeftY + edgeSize)) {
-                    document.body.style.cursor = "nwse-resize"
-
-                } else if (mouse.realX >= (bottomLeftX - edgeSize) && mouse.realX <= (bottomLeftX + edgeSize)
-                    && mouse.realY >= (bottomLeftY - edgeSize) && mouse.realY <= (bottomLeftY + edgeSize)) {
-
-                    document.body.style.cursor = "nesw-resize"
-                } else if (mouse.realX >= (topRightX - edgeSize) && mouse.realX <= (topRightX + edgeSize)
-                    && mouse.realY >= (topRightY - edgeSize) && mouse.realY <= (topRightY + edgeSize)) {
-
-                    document.body.style.cursor = "nesw-resize"
-                } else if (mouse.realX >= (bottomRightX - edgeSize) && mouse.realX <= (bottomRightX + edgeSize)
-                    && mouse.realY >= (bottomRightY - edgeSize) && mouse.realY <= (bottomRightY + edgeSize)) {
-
-                    document.body.style.cursor = "nwse-resize"
-                }
-            }
-        }
+    const trackWheel = (opt) => {
+        const delta = opt.e.deltaY
+        let zoom = canvas.getZoom()
+        zoom *= 0.999 ** delta
+        zoom = Math.min(maxZoom, zoom) // eq. to: if (zoom > maxZoom) zoom = maxZoom;
+        zoom = Math.max(minZoom, zoom) // eq. to: if (zoom < minZoom) zoom = minZoom;
+        // canvas.setZoom(zoom)
+        canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom)
+        opt.e.preventDefault()
+        opt.e.stopPropagation()
     }
 
     const listenImageLoad = (imageInformationContainerID, imagesContainerID, imageListContainerID, bboxesContainerID, restoreBboxesContainerID) => {
@@ -583,40 +497,38 @@
         currentImage = null
     }
 
-    const setCurrentImage = (imageInformationContainerID, image) => {
+    const setCurrentImage = (imageInformationContainerID, imageFile) => {
         if (resetCanvasOnChange === true) {
             resetCanvasPlacement()
         }
-
-        if (fittedZoom === true) {
-            scale = fitZoom(image, scale, canvas.width, canvas.height)
-        }
-
+    
         const reader = new FileReader()
-
+    
         reader.addEventListener("load", () => {
             const dataUrl = reader.result
             const imageObject = new Image()
-
+    
             imageObject.addEventListener("load", () => {
                 currentImage = {
-                    name: image.meta.name,
+                    name: imageFile.meta.name,
                     object: imageObject,
-                    width: image.width,
-                    height: image.height
+                    width: imageFile.width,
+                    height: imageFile.height,
+                    scale: 1.0
                 }
+                refreshCanvas()
             })
-
+    
             imageObject.src = dataUrl
-
-            document.getElementById(imageInformationContainerID).innerHTML = `${image.width}x${image.height}, ${formatBytes(image.meta.size)}`
+    
+            document.getElementById(imageInformationContainerID).innerHTML = `${imageFile.width}x${imageFile.height}, ${formatBytes(imageFile.meta.size)}`
         })
-
-        reader.readAsDataURL(image.meta)
-
-        if (currentBbox !== null) {
-            currentBbox.bbox.marked = false // We unmark via reference
-            currentBbox = null // and the we delete
+    
+        reader.readAsDataURL(imageFile.meta)
+    
+        if (currentBBox !== null) {
+            currentBBox.bbox.marked = false // We unmark via reference
+            currentBBox = null // and the we delete
         }
     }
 
@@ -702,9 +614,9 @@
 
         currentClass = classList.options[classList.selectedIndex].text
 
-        if (currentBbox !== null) {
-            currentBbox.bbox.marked = false // We unmark via reference
-            currentBbox = null // and the we delete
+        if (currentBBox !== null) {
+            currentBBox.bbox.marked = false // We unmark via reference
+            currentBBox = null // and the we delete
         }
     }
 
@@ -752,6 +664,7 @@
                                     }
                                 })
                         }
+                        refreshCanvas()
                     })
     
                     if (extension === "txt" || extension === "xml"  || extension === "json") {
@@ -760,6 +673,7 @@
                         reader.readAsArrayBuffer(event.target.files[i])
                     }
                 }
+                
             }
         })
     }
@@ -1104,115 +1018,83 @@
     
         document.addEventListener("keydown", (event) => {
             const key = event.keyCode || event.charCode
-    
+            // Delete
             if (key === 46 || (key === 8 && event.metaKey === true)) {
-                if (currentBbox !== null) {
-                    bboxes[currentImage.name][currentBbox.bbox.class].splice(currentBbox.index, 1)
-                    currentBbox = null
-    
+                if (currentBBox !== null) {
+                    bboxes[currentImage.name][currentBBox.bbox.class].splice(currentBBox.index, 1)
+                    currentBBox = null
                     document.body.style.cursor = "default"
+                    canvas.remove(canvas.getActiveObject())
                 }
-    
                 event.preventDefault()
             }
-    
+            // Arrow right
             if (key === 37) {
                 if (imageList.length > 1) {
                     imageList.options[imageListIndex].selected = false
-    
                     if (imageListIndex === 0) {
                         imageListIndex = imageList.length - 1
                     } else {
                         imageListIndex--
                     }
-    
                     imageList.options[imageListIndex].selected = true
                     imageList.selectedIndex = imageListIndex
-    
                     setCurrentImage(imageInformationContainerID, images[imageList.options[imageListIndex].innerHTML])
-    
                     document.body.style.cursor = "default"
                 }
-    
                 event.preventDefault()
             }
-    
+            // Arrow left
             if (key === 39) {
                 if (imageList.length > 1) {
                     imageList.options[imageListIndex].selected = false
-    
                     if (imageListIndex === imageList.length - 1) {
                         imageListIndex = 0
                     } else {
                         imageListIndex++
                     }
-    
                     imageList.options[imageListIndex].selected = true
                     imageList.selectedIndex = imageListIndex
-    
                     setCurrentImage(imageInformationContainerID, images[imageList.options[imageListIndex].innerHTML])
-    
                     document.body.style.cursor = "default"
                 }
-    
                 event.preventDefault()
             }
-    
+            // Arrow up
             if (key === 38) {
                 if (classList.length > 1) {
                     classList.options[classListIndex].selected = false
-    
                     if (classListIndex === 0) {
                         classListIndex = classList.length - 1
                     } else {
                         classListIndex--
                     }
-    
                     classList.options[classListIndex].selected = true
                     classList.selectedIndex = classListIndex
-    
                     setCurrentClass(classListContainerID)
                 }
-    
                 event.preventDefault()
             }
-    
+            // Arrow down
             if (key === 40) {
                 if (classList.length > 1) {
                     classList.options[classListIndex].selected = false
-    
                     if (classListIndex === classList.length - 1) {
                         classListIndex = 0
                     } else {
                         classListIndex++
                     }
-    
                     classList.options[classListIndex].selected = true
                     classList.selectedIndex = classListIndex
-    
                     setCurrentClass(classListContainerID)
                 }
-    
                 event.preventDefault()
             }
         })
     }
 
     const resetCanvasPlacement = () => {
-        scale = defaultScale
-        canvasX = 0
-        canvasY = 0
-        screenX = 0
-        screenY = 0
-
-        mouse.x = 0
-        mouse.y = 0
-        mouse.realX = 0
-        mouse.realY = 0
-        mouse.buttonL = 0
-        mouse.buttonR = 0
-        mouse.startRealX = 0
-        mouse.startRealY = 0
+        // @todo: when image changes we need to reset zooms/scales and etc.
     }
 
     const listenImageSearch = (imageInformationContainerID, imageSearchContainerID, imageListContainerID) => {
