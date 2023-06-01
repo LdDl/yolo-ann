@@ -146,13 +146,20 @@
             return
         }
         const selectedObject = selectedObjects[0]
+        const underlyingBBox = selectedObject.underlying_bbox
+
+        const index = bboxes[currentImage.name][selectedObject.underlying_bbox.class].findIndex(
+            element => (element.height === underlyingBBox.height) && (element.width === underlyingBBox.width) && (element.x === underlyingBBox.x) && (element.y === underlyingBBox.y)
+        );
+
         currentBBox = {
             bbox: selectedObject.underlying_bbox,
-            index: bboxes[currentImage.name][selectedObject.underlying_bbox.class].length-1,
-            originalX: selectedObject.underlying_bbox.x,
-            originalY: selectedObject.underlying_bbox.y,
-            originalWidth: selectedObject.underlying_bbox.width,
-            originalHeight: selectedObject.underlying_bbox.height,
+            // index: bboxes[currentImage.name][selectedObject.underlying_bbox.class].length-1, // What was that? hidden memes?
+            index: index,
+            originalX: underlyingBBox.x,
+            originalY: underlyingBBox.y,
+            originalWidth: underlyingBBox.width,
+            originalHeight: underlyingBBox.height,
             moving: false,
             resizing: null
         }
@@ -1021,7 +1028,7 @@
             // Delete
             if (key === 46 || (key === 8 && event.metaKey === true)) {
                 if (currentBBox !== null) {
-                    bboxes[currentImage.name][currentBBox.bbox.class].splice(currentBBox.index, 1)
+                    const deleted = bboxes[currentImage.name][currentBBox.bbox.class].splice(currentBBox.index, 1)
                     currentBBox = null
                     document.body.style.cursor = "default"
                     canvas.remove(canvas.getActiveObject())
