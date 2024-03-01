@@ -44,7 +44,7 @@
     const saveBBoxesCOCOID = 'saveCocoBboxes'
     const cropImagesID = 'cropImages'
 
-    const extensions = ["jpg", "jpeg", "png", "JPG", "JPEG", "PNG"]
+    const extensions = ["jpg", "jpeg", "png", "JPG", "JPEG", "PNG", "bmp", "BMP"]
 
     let currentImage = null
     let currentClass = null
