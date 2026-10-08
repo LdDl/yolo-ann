@@ -11,6 +11,10 @@ Fast and efficient BBox annotation for your images in YOLO, and now, VOC/COCO fo
 1. Navigate to https://lddl.github.io/yolo-ann/
 2. Load images and classes and start bboxing!
 
+    To continue from COCO annotations, load images and then the COCO `.json` without a classes file: the class
+    list is filled from its `categories`. YOLO and VOC annotations need a classes file loaded first: a text file
+    with one class name per line, or the YOLO dataset's `data.yaml` (its `names` are read).
+
 ### Offline
 
 <details>
@@ -30,7 +34,7 @@ Fast and efficient BBox annotation for your images in YOLO, and now, VOC/COCO fo
 
 3. Open `index.html` in your browser.
 
-4. Load images and classes and start bboxing!
+4. Load images and classes and start bboxing (see Online above for COCO files)!
 
 5. Optional configuration:
 
@@ -39,6 +43,13 @@ Fast and efficient BBox annotation for your images in YOLO, and now, VOC/COCO fo
     5.2. Edit section named `parameters`.
 
 </details>
+
+## Tests
+
+Annotation file reading and writing (`formats.js`) has unit tests without any dependencies:
+
+* in a browser: open `tests/index.html` (runs everything, including VOC import);
+* with Node.js: `node tests/run.js` (VOC import tests are skipped, as Node has no `DOMParser`).
 
 UI should look something like this:
 
@@ -50,7 +61,8 @@ Main differences are:
 * Updated version of `jszip`
 * Updated version of `FileSaver.js`
 * Panning is done via wheel button
-* Accept *.names, *.csv and *.txt extensions for classnames file
+* Accept *.names and *.txt extensions for classnames file (one class name per line), and YOLO dataset *.yaml files
+  (`names`)
 
 
 ## Compatibility

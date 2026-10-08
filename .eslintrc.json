@@ -5,6 +5,7 @@
     },
     "globals": {
         "Canvas": true,
+        "Formats": true,
         "JSZip": true,
         "saveAs": true
     },

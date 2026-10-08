@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>yolo-ann tests</title>
+    <script src="../formats.js"></script>
+    <script src="runner.js"></script>
+    <script src="formats.test.js"></script>
+</head>
+<body>
+    <pre id="output"></pre>
+    <script>
+        const output = document.getElementById("output")
+        const result = runTests(defineFormatsTests, Formats, (line) => {
+            output.textContent += line + "\n"
+        })
+
+        document.title = (result.failed > 0 ? "FAILED - " : "PASSED - ") + document.title
+        document.body.style.background = result.failed > 0 ? "#fdd" : "#dfd"
+    </script>
+</body>
+</html>

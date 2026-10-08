@@ -11,6 +11,7 @@ hr {
 }
 
 .container {
+    --sidebar-width: 30%; /* Set by dragging #sidebarResizer */
     display: block;
     position: absolute;
     height: auto;
@@ -25,7 +26,7 @@ hr {
 }
 
 .left {
-    width: calc(30% - 10px);
+    width: calc(var(--sidebar-width) - 10px);
     position: absolute;
     left: 0;
     top: 0;
@@ -33,12 +34,29 @@ hr {
     height: auto;
     display: block;
     margin: 10px 0 10px 10px;
+    overflow-y: auto; /* Scroll the controls on short screens; the page itself doesn't scroll */
 }
 
 .right {
     border-left: 1px solid gray;
-    margin: 10px 10px 10px calc(30% + 10px);
+    margin: 10px 10px 10px calc(var(--sidebar-width) + 10px);
     padding-left: 10px;
+}
+
+/* A grab area over .right's left border */
+#sidebarResizer {
+    position: absolute;
+    top: 10px;
+    bottom: 10px;
+    left: calc(var(--sidebar-width) + 10px - 5px);
+    width: 11px;
+    cursor: col-resize;
+    z-index: 1;
+    touch-action: none;
+}
+
+#sidebarResizer:hover, #sidebarResizer.dragging {
+    background: linear-gradient(to right, transparent 4px, #4a90d9 4px, #4a90d9 7px, transparent 7px);
 }
 
 #images, #classes, #bboxes {
@@ -46,18 +64,21 @@ hr {
     margin-top: 10px;
 }
 
-#bboxes {
-    width: 130px;
+#imageList {
+    width: 100%;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    height: 12%;
 }
 
-#imageList, #classList, #description {
+#classList, #description {
     width: 100%;
     margin-top: 10px;
     margin-bottom: 10px;
     height: 18%;
 }
 
-#saveClasses, #saveBboxes, #saveVocBboxes, #saveCocoBboxes, #restoreBboxes, #cropImages {
+#cropImages {
     float: right;
     margin-left: 10px;
     margin-top: 10px;
@@ -68,20 +89,56 @@ hr {
     margin-top: 10px;
 }
 
-#imageInformation, #bboxInformation {
-    height: 20px;
-    width: 100%;
-}
-
-#voc {
-    margin-top: 10px;
+/* Image details and box details on one line; the fixed first column keeps the box details in place.
+   In a narrow panel the box details wrap rather than get cut off. */
+.information {
+    display: grid;
+    grid-template-columns: 10.5em minmax(0, 1fr);
+    column-gap: 10px;
+    min-height: 20px;
 }
 
 #vocFolder {
     width: 95px;
 }
 
-#saveVocBboxes, #saveCocoBboxes {
+/* A line of controls, e.g. the save buttons */
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin: 10px 0;
+}
+
+/* Short help text under or next to a control */
+.hint {
+    font-size: 0.85em;
+    color: #555;
+    margin-top: 4px;
+}
+
+.row .hint {
     margin-top: 0;
-    margin-bottom: 0;
+}
+
+/* .row's display: flex would otherwise override the hidden attribute */
+.row[hidden], progress[hidden] {
+    display: none;
+}
+
+/* A transform animation keeps spinning even while the page's scripts are busy */
+.spinner {
+    width: 12px;
+    height: 12px;
+    border: 3px solid #ccc;
+    border-top-color: #4a90d9;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
 }

@@ -11,6 +11,7 @@
     <script src="filesaver.min.js"></script>
 
     <script src="utils.js"></script>
+    <script src="formats.js"></script>
     <script src="canvas_intro.js"></script>
     <script src="canvas_bbox.js"></script>
     <script src="canvas_cursor.js"></script>
@@ -20,10 +21,15 @@
 <body>
     <div class="container" id="container">
         <div class="left">
-            <form action="">
+            <form action="" autocomplete="off"> <!-- Firefox would restore the picked files on reload, but not the images -->
                 <label for="images">Images:</label>
-                <input type="file" id="images" name="images[]" accept="image/jpeg, image/png" multiple />
+                <input type="file" id="images" name="images[]" accept="image/jpeg, image/png, image/bmp" multiple />
                 <input type="button" name="cropImages" id="cropImages" value="Crop&Save" />
+                <div class="row" id="imageProgress" hidden>
+                    <span class="spinner"></span>
+                    <progress></progress>
+                    <span class="hint"></span>
+                </div>
 
                 <br />
 
@@ -32,29 +38,39 @@
 
                 <label for="imageList"></label><select name="imageList" id="imageList" size="10" multiple></select>
 
-                <div id="imageInformation"></div>
+                <div class="information">
+                    <div id="imageInformation"></div>
+                    <div id="bboxInformation"></div>
+                </div>
                 <hr />
 
                 <label for="classes">Classes:</label>
-                <input type="file" id="classes" name="classes" accept=".txt,.names,.csv" />
+                <input type="file" id="classes" name="classes" accept=".txt,.names,.yaml,.yml" />
+                <div class="hint">
+                    For example, a text file with one class per row or a YOLO data.yaml. Not needed for COCO.
+                </div>
                 <label for="classList"></label><select name="classList" id="classList" size="10" multiple></select>
 
-                <div id="bboxInformation"></div>
                 <hr />
 
                 <label for="bboxes">Bboxes:</label>
-                <input type="file" id="bboxes" name="bboxes[]" accept="text/plain, application/zip" disabled multiple />
-                <input type="button" name="restoreBboxes" id="restoreBboxes" value="Restore" disabled />
-                <input type="button" name="saveBboxes" id="saveBboxes" value="Save YOLO" />
+                <input type="file" id="bboxes" name="bboxes[]" accept=".txt,.xml,.json,.zip,text/plain,application/zip" disabled multiple />
 
-                <div id="voc">
+                <hr />
+                <div class="row">
+                    <input type="button" name="restoreBboxes" id="restoreBboxes" value="Restore backup" disabled />
+                    <span class="hint">Bboxes are saved every minute to local browser storage.</span>
+                </div>
+                <hr />
+
+                <div class="row">
+                    <input type="button" name="saveBboxes" id="saveBboxes" value="Save YOLO" />
+                    <input type="button" name="saveCocoBboxes" id="saveCocoBboxes" value="Save COCO" />
+                </div>
+                <div class="row">
                     <label for="vocFolder">Voc folder:</label>
                     <input type="text" id="vocFolder" name="vocFolder" value="data" />
                     <input type="button" name="saveVocBboxes" id="saveVocBboxes" value="Save VOC" />
-                    <input type="button" name="saveCocoBboxes" id="saveCocoBboxes" value="Save COCO" />
-                </div>
-                <div id="coco">
-
                 </div>
                 <hr />
 
@@ -82,6 +98,8 @@
                 </div>
             </form>
         </div>
+
+        <div id="sidebarResizer" title="Drag to resize the sidebar, double-click to reset"></div>
 
         <div class="right" id="right">
             <canvas id="canvas"></canvas>

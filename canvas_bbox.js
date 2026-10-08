@@ -1,27 +1,3 @@
-// Draws cross in the middle of bounding box
-const drawCross = (x, y, width, height, { scale = 1, paddingPercentage = 1, strokeColor = '#001f3f' }) => {
-    const centerX = x + width / 2
-    const centerY = y + height / 2
-
-    const offsetY = (height - (height * paddingPercentage)) / 2
-    const line1 = new fabric.Line([centerX * scale, (centerY - offsetY) * scale, centerX * scale, (centerY + offsetY) * scale], {
-        stroke: strokeColor,
-        strokeWidth: 1,
-        selectable: false,
-        evented: false
-    })
-
-    const offsetX = (width - (width * paddingPercentage)) / 2
-    const line2 = new fabric.Line([(centerX - offsetX) * scale, centerY * scale, (centerX + offsetX) * scale, centerY * scale], {
-        stroke: strokeColor,
-        strokeWidth: 1,
-        selectable: false,
-        evented: false
-    })
-
-    return { vertical: line1, horizontal: line2}
-}
-
 // Sets for given container coordinates of bounding box
 const setBBoxCoordinates = (containerID, x, y, width, height) => {
     const x2 = Math.floor(x + width)
@@ -33,26 +9,28 @@ const setBBoxCoordinates = (containerID, x, y, width, height) => {
 const newRect = (bbox, className,
     {
         scale = 1,
-        rect_props = { stroke: '#001f3f', activeStroke: '#ff4136', strokeWidth: 1, fill: 'rgba(0, 116, 217, 0.2)', activeFill: 'rgba(255, 133, 27, 0.2)', opacity: 1.0 },
-        label_props = { fontSize: 30, fill: '#001f3f', activeFill: '#ff4136' },
-        cross_props = { enabled: true, paddingPercentage: 0.0, stroke: '#001f3f', activeStroke: '#ff4136' }, 
+        rect_props = { stroke: '#1f77b4', activeStroke: '#aec7e8', strokeWidth: 2, fill: 'rgba(31, 119, 180, 0.2)', activeFill: 'rgba(174, 199, 232, 0.2)', opacity: 1.0 },
+        label_props = { fontSize: 30, fill: '#ffffff', activeFill: '#000000', backgroundColor: '#1f77b4', activeBackgroundColor: '#aec7e8' },
         container = { id: null }
     }) => {
-     // Draw bounding box itself
-     const rect = new fabric.Rect({
+    // The border is drawn by renderBorder rather than Fabric's stroke, so left/top/width/height are exactly the
+    // bbox and the border is centered on its edge
+    const rect = new fabric.Rect({
         left: bbox.x * scale,
         top: bbox.y * scale,
         width: bbox.width * scale,
         height: bbox.height * scale,
         stroke: rect_props.stroke,
-        strokeWidth: rect_props.strokeWidth,
+        strokeWidth: 0,
         fill: rect_props.fill,
         opacity: rect_props.opacity,
-        strokeDashArray: null
-        // lockRotation: true,
-        // controls: { ...fabric.Rect.prototype.controls, mtr: new fabric.Control({ visible: false }) }
+        objectCaching: false // The cache canvas would clip the border, which reaches outside the box
     })
     rect.setControlsVisibility({ mtr: false }) // Disable rotation control
+    rect._render = function (ctx) {
+        fabric.Rect.prototype._render.call(this, ctx)
+        renderBorder(ctx, this, rect_props)
+    }
     
     // Attach bounding box to the rectangle object
     rect.underlying_bbox = bbox
@@ -74,100 +52,77 @@ const newRect = (bbox, className,
         }
     })
 
-    // Place label above bounding box
+    // Class name on a solid background, above the bounding box
+    const fontSize = label_props.fontSize * scale
+    const padding = fontSize * 0.25
     const label = new fabric.Text(className, {
         selectable: false,
         fontFamily: 'sans-serif',
-        fontSize: label_props.fontSize * scale,
+        fontSize: fontSize,
         fill: label_props.fill,
-        left: rect.left,
-        top: (rect.top - label_props.fontSize * scale)
+        backgroundColor: label_props.backgroundColor,
+        objectCaching: false // The cache canvas would clip the padded background
     })
+    label._renderBackground = function (ctx) {
+        ctx.fillStyle = this.backgroundColor
+        ctx.fillRect(-this.width / 2 - padding, -this.height / 2, this.width + 2 * padding, this.height)
+    }
 
-    // Cross in the center of bounding box
-    const { vertical, horizontal } = drawCross(rect.left, rect.top, rect.width, rect.height, { scale: 1.0, paddingPercentage: cross_props.paddingPercentage, strokeColor: cross_props.stroke })
+    // Keep the label's background flush with the outer edge of the border, at the top left corner, so they
+    // join into one shape
+    const borderExtent = rect_props.strokeWidth / 2
+    const placeLabel = () => {
+        label.set({
+            left: rect.left - borderExtent + padding,
+            top: rect.top - borderExtent - label.height
+        })
+        label.setCoords()
+    }
+    placeLabel()
 
     rect.on('selected', () => {
         // Display clicked bounding box coordinates into the box of left panel
         if (container.id !== null) {
             setBBoxCoordinates(container.id, bbox.x, bbox.y, bbox.width, bbox.height)
         }
-        // Highlight bounding box, label and cross
-        rect.set({ fill: rect_props.activeFill })
-        rect.set({ stroke: rect_props.activeStroke })
-        label.set({ fill: label_props.activeFill })
-        vertical.set({ stroke: cross_props.activeStroke })
-        horizontal.set({ stroke: cross_props.activeStroke })
+        rect.set({ fill: rect_props.activeFill, stroke: rect_props.activeStroke })
+        label.set({ fill: label_props.activeFill, backgroundColor: label_props.activeBackgroundColor })
     })
 
     rect.on('deselected', () => {
-        rect.set({ fill: rect_props.fill })
-        rect.set({ stroke: rect_props.stroke })
-        label.set({ fill: label_props.fill })
-        vertical.set({ stroke: cross_props.stroke })
-        horizontal.set({ stroke: cross_props.stroke })
+        rect.set({ fill: rect_props.fill, stroke: rect_props.stroke })
+        label.set({ fill: label_props.fill, backgroundColor: label_props.backgroundColor })
     })
     
-    // Move text and cross along with the bounding box
-    rect.on('moving', (options) => {
-        moveLabelAlongWithBBox(rect, label, label_props.fontSize, scale)
-        if (cross_props.enabled === true) {
-            moveCrossAlongWithBBox(rect, vertical, horizontal, cross_props.paddingPercentage, options)
-        }
-    })
-
-    // Move text and cross along with the bounding box while zooming
-    rect.on('scaling', (options) => {
-        moveLabelAlongWithBBox(rect, label, label_props.fontSize, scale)
-        if (cross_props.enabled === true) {
-            moveCrossAlongWithBBox(rect, vertical, horizontal, cross_props.paddingPercentage, options)
-        }
-    })
+    // Move the label along with the bounding box
+    rect.on('moving', placeLabel)
+    rect.on('scaling', placeLabel)
         
-    // Make sure that corresponding label and cross are removed when the bounding box is removed
+    // Make sure that the label is removed when the bounding box is removed
     rect.on('removed', () => {
         // Is this really dirty way?
         const canvas = label.canvas
         canvas.remove(label)
-        if (cross_props.enabled === true) {
-            canvas.remove(vertical)
-            canvas.remove(horizontal)
-        }
     })
 
-    return { rect, label, vertical, horizontal }
+    return { rect, label, placeLabel }
 }
 
-// Function to move the label along with the bounding box
-const moveLabelAlongWithBBox = (rect, label, fontSize, imgScale) => {
-    label.set({
-        left: rect.left,
-        top: (rect.top - fontSize * imgScale),
-    });
-}
+// The colored border centered on the box edge. Its width stays constant while the box is being resized
+// (scaleX/scaleY), like Fabric's strokeUniform.
+const renderBorder = (ctx, rect, { strokeWidth }) => {
+    if (strokeWidth <= 0) {
+        return
+    }
+    const scaleX = Math.abs(rect.scaleX) || 1
+    const scaleY = Math.abs(rect.scaleY) || 1
+    const width = rect.width * scaleX
+    const height = rect.height * scaleY
 
-// Function to move crosslines along with the bounding box
-const moveCrossAlongWithBBox = (rect, vertical, horizontal, linePaddingPercent, options) => {
-    const transform = options.transform
-    const target = transform.target
-    const targetScaleX = target.scaleX
-    const targetScaleY = target.scaleY
-    const rectLeft = target.left
-    const rectTop = target.top
-    const newRectWidth = target.width * targetScaleX
-    const newRectHeight = target.height * targetScaleY
-    const newCross = crossFromRectangle(rectLeft, rectTop, newRectWidth, newRectHeight, linePaddingPercent)
-    vertical.set({
-        x1: newCross.vertical[0],
-        y1: newCross.vertical[1],
-        x2: newCross.vertical[2],
-        y2: newCross.vertical[3],
-    });
-    horizontal.set({
-        x1: newCross.horizontal[0],
-        y1: newCross.horizontal[1],
-        x2: newCross.horizontal[2],
-        y2: newCross.horizontal[3],
-    });
-
+    ctx.save()
+    ctx.scale(1 / scaleX, 1 / scaleY)
+    ctx.lineWidth = strokeWidth
+    ctx.strokeStyle = rect.stroke
+    ctx.strokeRect(-width / 2, -height / 2, width, height)
+    ctx.restore()
 }
